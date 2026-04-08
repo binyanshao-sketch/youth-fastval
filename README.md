@@ -183,9 +183,12 @@ npm run smoke:admin:full
 ### 上线前必检
 
 - `NODE_ENV=production` 时必须配置 `DB_*`、`REDIS_*`、`JWT_SECRET`、`CORS_ORIGINS`。
-- `JWT_SECRET` 长度需至少 24 位。
+- `JWT_SECRET` 长度需至少 24 位（任何环境都必须配置，无默认值）。
+- `REDIS_PASSWORD` 必须配置（生产环境 Redis 已启用密码认证）。
+- `DB_ROOT_PASSWORD` 和 `DB_PASSWORD` 需分别配置（使用独立应用账号 `app_user`）。
 - 生产环境建议 `WX_USE_MOCK=false`，并配置真实微信参数与证书。
 - 容器健康探针：后端使用 `/ready`，Nginx 使用 `/health`。
+- MySQL 和 Redis 端口不暴露到宿主机，仅通过 Docker 内部网络通信。
 
 
 ## 许可证

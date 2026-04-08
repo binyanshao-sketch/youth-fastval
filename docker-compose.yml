@@ -26,22 +26,26 @@ services:
   # 后端服务
   server:
     build: ./server
-    ports:
-      - "3000:3000"
+    # 仅内部通信，不暴露到宿主机
+    expose:
+      - "3000"
     environment:
       - NODE_ENV=production
       - DB_HOST=mysql
       - DB_PORT=3306
       - DB_NAME=yibin_youth_festival
-      - DB_USER=root
+      - DB_USER=app_user
       - DB_PASSWORD=${DB_PASSWORD}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
       - JWT_SECRET=${JWT_SECRET}
+      - CORS_ORIGINS=${CORS_ORIGINS}
       - WX_APPID=${WX_APPID}
       - WX_SECRET=${WX_SECRET}
       - WX_PAY_MCHID=${WX_PAY_MCHID}
       - WX_PAY_KEY=${WX_PAY_KEY}
+      - WX_USE_MOCK=${WX_USE_MOCK:-false}
       - TENCENT_SECRET_ID=${TENCENT_SECRET_ID}
       - TENCENT_SECRET_KEY=${TENCENT_SECRET_KEY}
       - TENCENT_SMS_APP_ID=${TENCENT_SMS_APP_ID}
@@ -62,37 +66,39 @@ services:
       start_period: 20s
     restart: always
 
-  # MySQL 数据库
+  # MySQL 数据库（不暴露端口到宿主机）
   mysql:
     image: mysql:8.0
-    ports:
-      - "3306:3306"
+    expose:
+      - "3306"
     environment:
-      - MYSQL_ROOT_PASSWORD=${DB_PASSWORD}
+      - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
       - MYSQL_DATABASE=yibin_youth_festival
+      - MYSQL_USER=app_user
+      - MYSQL_PASSWORD=${DB_PASSWORD}
       - TZ=Asia/Shanghai
     volumes:
       - mysql_data:/var/lib/mysql
       - ./database/schema.sql:/docker-entrypoint-initdb.d/init.sql
     command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${DB_PASSWORD}"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${DB_ROOT_PASSWORD}"]
       interval: 20s
       timeout: 5s
       retries: 10
       start_period: 20s
     restart: always
 
-  # Redis 缓存
+  # Redis 缓存（不暴露端口到宿主机，启用密码）
   redis:
     image: redis:7-alpine
-    ports:
-      - "6379:6379"
+    expose:
+      - "6379"
     volumes:
       - redis_data:/data
-    command: redis-server --appendonly yes
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD} --maxmemory 256mb --maxmemory-policy allkeys-lru
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 20s
       timeout: 5s
       retries: 5

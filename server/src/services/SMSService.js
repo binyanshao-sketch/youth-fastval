@@ -3,6 +3,7 @@
  */
 
 const tencentcloud = require("tencentcloud-sdk-nodejs-sms");
+const logger = require('../utils/logger');
 
 const SmsClient = tencentcloud.sms.v20210111.Client;
 
@@ -34,7 +35,7 @@ class SMSService {
   async send(phone, content) {
     // 开发环境模拟发送
     if (process.env.NODE_ENV === 'development') {
-      console.log(`[SMS Mock] 发送到 ${phone}: ${content}`);
+      logger.info(`[SMS Mock] 发送到 ${phone}: ${content}`);
       return { success: true };
     }
     
@@ -58,7 +59,7 @@ class SMSService {
         };
       }
     } catch (error) {
-      console.error('发送短信失败:', error);
+      logger.error('发送短信失败', { error: error.message });
       return {
         success: false,
         message: error.message || '发送失败'
@@ -74,7 +75,7 @@ class SMSService {
   async sendBatch(phones, content) {
     // 开发环境模拟发送
     if (process.env.NODE_ENV === 'development') {
-      console.log(`[SMS Mock] 批量发送到 ${phones.length} 个号码: ${content}`);
+      logger.info(`[SMS Mock] 批量发送到 ${phones.length} 个号码: ${content}`);
       return { success: true };
     }
     
@@ -104,7 +105,7 @@ class SMSService {
         };
       }
     } catch (error) {
-      console.error('批量发送短信失败:', error);
+      logger.error('批量发送短信失败', { error: error.message });
       return {
         success: false,
         message: error.message || '发送失败'

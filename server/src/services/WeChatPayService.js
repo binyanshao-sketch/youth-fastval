@@ -6,6 +6,7 @@ const crypto = require('crypto');
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
+const logger = require('../utils/logger');
 
 class WeChatPayService {
   constructor() {
@@ -63,7 +64,7 @@ class WeChatPayService {
         };
       }
     } catch (error) {
-      console.error('企业付款失败:', error);
+      logger.error('企业付款失败', { error: error.message });
       return {
         success: false,
         message: error.message || '付款失败'
@@ -111,7 +112,7 @@ class WeChatPayService {
         };
       }
     } catch (error) {
-      console.error('查询付款失败:', error);
+      logger.error('查询付款失败', { error: error.message });
       return {
         success: false,
         message: error.message || '查询失败'

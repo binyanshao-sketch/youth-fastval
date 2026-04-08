@@ -336,6 +336,37 @@ module.exports = (sequelize) => {
     updatedAt: 'updated_at'
   });
   
+  // 操作日志表
+  models.AdminLog = sequelize.define('AdminLog', {
+    id: {
+      type: DataTypes.BIGINT.UNSIGNED,
+      primaryKey: true,
+      autoIncrement: true
+    },
+    admin_id: {
+      type: DataTypes.BIGINT.UNSIGNED,
+      allowNull: false
+    },
+    action: {
+      type: DataTypes.STRING(50),
+      allowNull: false
+    },
+    target: {
+      type: DataTypes.STRING(100)
+    },
+    detail: {
+      type: DataTypes.TEXT
+    },
+    ip: {
+      type: DataTypes.STRING(50)
+    }
+  }, {
+    tableName: 'admin_logs',
+    timestamps: true,
+    createdAt: 'created_at',
+    updatedAt: false
+  });
+
   // 管理员表
   models.Admin = sequelize.define('Admin', {
     id: {
@@ -402,6 +433,10 @@ module.exports = (sequelize) => {
 
   models.UserCoupon.hasMany(models.VerifyRecord, { foreignKey: 'user_coupon_id', as: 'verifyRecords' });
   models.VerifyRecord.belongsTo(models.UserCoupon, { foreignKey: 'user_coupon_id', as: 'userCoupon' });
-  
+
+  // 管理员 - 操作日志
+  models.Admin.hasMany(models.AdminLog, { foreignKey: 'admin_id', as: 'logs' });
+  models.AdminLog.belongsTo(models.Admin, { foreignKey: 'admin_id', as: 'admin' });
+
   return models;
 };

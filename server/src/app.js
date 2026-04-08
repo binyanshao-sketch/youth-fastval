@@ -9,6 +9,7 @@ const helmet = require('helmet');
 const Redis = require('ioredis');
 const jwt = require('jsonwebtoken');
 const { Sequelize } = require('sequelize');
+const logger = require('./utils/logger');
 
 // 路由
 const userRoutes = require('./routes/user');
@@ -62,6 +63,17 @@ function validateProductionEnv() {
 
 validateProductionEnv();
 
+// 非生产环境也强制要求 JWT_SECRET
+function getJwtSecret() {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error('JWT_SECRET 环境变量未配置，请在 .env 文件中设置');
+  }
+  return secret;
+}
+
+const jwtSecret = getJwtSecret();
+
 const corsOrigins = parseCsv(process.env.CORS_ORIGINS);
 const allowAllOrigins = corsOrigins.includes('*');
 
@@ -102,14 +114,17 @@ const sequelize = new Sequelize(
     host: getEnv('DB_HOST', 'localhost'),
     port: Number(getEnv('DB_PORT', '3306')),
     dialect: 'mysql',
-    logging: process.env.NODE_ENV === 'development' ? console.log : false,
+    logging: process.env.NODE_ENV === 'development' ? (msg) => logger.debug(msg) : false,
     pool: {
-      max: 10,
-      min: 2,
+      max: 20,
+      min: 5,
       acquire: 30000,
       idle: 10000
     },
-    timezone: '+08:00'
+    timezone: '+08:00',
+    retry: {
+      max: 3
+    }
   }
 );
 
@@ -129,20 +144,27 @@ app.use((req, res, next) => {
 const redis = new Redis({
   host: getEnv('REDIS_HOST', 'localhost'),
   port: Number(getEnv('REDIS_PORT', '6379')),
-  password: getEnv('REDIS_PASSWORD', ''),
-  db: Number(getEnv('REDIS_DB', '0'))
+  password: getEnv('REDIS_PASSWORD', '') || undefined,
+  db: Number(getEnv('REDIS_DB', '0')),
+  retryStrategy(times) {
+    const delay = Math.min(times * 200, 5000);
+    return delay;
+  },
+  maxRetriesPerRequest: 3,
+  enableReadyCheck: true,
+  lazyConnect: false
 });
 
-redis.on('connect', () => console.log('✅ Redis连接成功'));
-redis.on('error', err => console.error('❌ Redis错误:', err));
+redis.on('connect', () => logger.info('Redis连接成功'));
+redis.on('error', err => logger.error('Redis错误', { error: err.message }));
 app.locals.redis = redis;
 
 // ============================================
-// JWT 配置
+// JWT 配置（不再使用硬编码回退值）
 // ============================================
 app.locals.jwt = {
-  sign: (payload, expiresIn = '7d') => jwt.sign(payload, process.env.JWT_SECRET || 'yibin-youth-2026', { expiresIn }),
-  verify: (token) => jwt.verify(token, process.env.JWT_SECRET || 'yibin-youth-2026')
+  sign: (payload, expiresIn = '7d') => jwt.sign(payload, jwtSecret, { expiresIn }),
+  verify: (token) => jwt.verify(token, jwtSecret)
 };
 
 // ============================================
@@ -193,15 +215,15 @@ app.get('/api/status', async (req, res) => {
     const isActive = await models.SystemConfig.findOne({
       where: { config_key: 'is_active' }
     });
-    
+
     const startTime = await models.SystemConfig.findOne({
       where: { config_key: 'activity_start_time' }
     });
-    
+
     const endTime = await models.SystemConfig.findOne({
       where: { config_key: 'activity_end_time' }
     });
-    
+
     res.json({
       success: true,
       data: {
@@ -234,16 +256,17 @@ if (require.main === module) {
     try {
       await sequelize.authenticate();
       await redis.ping();
-      console.log('✅ 数据库连接成功');
-      console.log('✅ Redis连接成功');
+      logger.info('数据库连接成功');
+      logger.info('Redis连接成功');
 
       server = app.listen(PORT, () => {
-        console.log(`🚀 服务器运行在端口 ${PORT}`);
-        console.log(`📝 环境: ${process.env.NODE_ENV || 'development'}`);
-        console.log(`⏰ 启动时间: ${new Date().toISOString()}`);
+        logger.info(`服务器运行在端口 ${PORT}`, {
+          env: process.env.NODE_ENV || 'development',
+          startTime: new Date().toISOString()
+        });
       });
     } catch (err) {
-      console.error('❌ 服务启动失败:', err);
+      logger.error('服务启动失败', { error: err.message, stack: err.stack });
       process.exit(1);
     }
   })();
@@ -257,7 +280,7 @@ async function gracefulShutdown(signal) {
   }
 
   isShuttingDown = true;
-  console.log(`收到 ${signal} 信号，正在关闭...`);
+  logger.info(`收到 ${signal} 信号，正在关闭...`);
 
   try {
     if (server) {
@@ -267,7 +290,7 @@ async function gracefulShutdown(signal) {
     redis.disconnect();
     process.exit(0);
   } catch (error) {
-    console.error('关闭服务时发生错误:', error);
+    logger.error('关闭服务时发生错误', { error: error.message });
     process.exit(1);
   }
 }

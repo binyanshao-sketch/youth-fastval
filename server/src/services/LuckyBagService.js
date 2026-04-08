@@ -3,9 +3,11 @@
  * 处理福袋领取、红包发放、消费券绑定等核心业务
  */
 
+const crypto = require('crypto');
 const { Op } = require('sequelize');
 const RedPacketAllocator = require('./RedPacketAllocator');
 const WeChatService = require('./WeChatService');
+const logger = require('../utils/logger');
 
 class LuckyBagService {
   constructor(models, redis) {
@@ -49,138 +51,191 @@ class LuckyBagService {
     const config = await this.models.SystemConfig.findOne({
       where: { config_key: 'is_active' }
     });
-    
+
     if (!config || config.config_value !== 'true') {
       return false;
     }
-    
+
     const startTime = await this.models.SystemConfig.findOne({
       where: { config_key: 'activity_start_time' }
     });
     const endTime = await this.models.SystemConfig.findOne({
       where: { config_key: 'activity_end_time' }
     });
-    
+
     const now = new Date();
     const start = new Date(startTime.config_value);
     const end = new Date(endTime.config_value);
-    
+
     return now >= start && now <= end;
   }
 
   /**
-   * 领取福袋
+   * 检查每日领取上限
    */
-  async receive(userId, ip, userAgent) {
-    await this.ensureRedPacketPool();
+  async checkDailyLimit() {
+    const dailyLimitConfig = await this.models.SystemConfig.findOne({
+      where: { config_key: 'daily_limit' }
+    });
+    const dailyLimit = parseInt(dailyLimitConfig?.config_value || '5000');
 
-    // 1. 检查活动状态
-    if (!(await this.isActivityActive())) {
-      throw new Error('活动未开始或已结束');
-    }
-    
-    // 2. 检查是否已领取
-    if (await this.hasReceived(userId)) {
-      throw new Error('每人限领1份');
-    }
-    
-    // 3. 检查红包库存
-    if (!(await this.redPacketAllocator.hasStock())) {
-      throw new Error('福袋已领完');
-    }
-    
-    // 4. 分配红包
-    const redPacket = await this.redPacketAllocator.allocate();
-    
-    // 5. 获取消费券
-    const coupons = await this.allocateCoupons();
-    
-    // 6. 获取政策链接
-    const policyConfig = await this.models.SystemConfig.findOne({
-      where: { config_key: 'policy_url' }
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayCount = await this.models.LuckyBagRecord.count({
+      where: {
+        received_at: { [Op.gte]: today }
+      }
     });
-    
-    // 7. 创建领取记录
-    const record = await this.models.LuckyBagRecord.create({
-      user_id: userId,
-      redpacket_amount: redPacket.amount,
-      redpacket_status: 1, // 待发放
-      policy_url: policyConfig?.config_value || '',
-      ip,
-      user_agent: userAgent
-    });
-    
-    // 8. 绑定消费券
-    await this.bindCoupons(userId, coupons, record.id);
-    
-    // 9. 发送红包（异步）
-    this.sendRedPacket(userId, redPacket.amount, record.id).catch(err => {
-      console.error('红包发送失败:', err);
-    });
-    
-    return {
-      redPacket: {
-        amount: redPacket.amount,
-        blessing: redPacket.blessing
-      },
-      coupons: coupons.map(c => ({
-        id: c.id,
-        name: c.name,
-        amount: c.amount,
-        minSpend: c.min_spend,
-        validTo: c.valid_to
-      })),
-      policyUrl: policyConfig?.config_value || ''
-    };
+
+    if (todayCount >= dailyLimit) {
+      throw new Error('今日福袋已领完，请明天再来');
+    }
   }
 
   /**
-   * 分配消费券
+   * 领取福袋（使用 Redis 分布式锁防重复提交）
+   */
+  async receive(userId, ip, userAgent) {
+    // 使用 Redis 锁防止同一用户并发领取
+    const lockKey = `lock:lucky_bag:${userId}`;
+    const lockAcquired = await this.redis.set(lockKey, '1', 'EX', 10, 'NX');
+    if (!lockAcquired) {
+      throw new Error('请勿重复提交');
+    }
+
+    try {
+      await this.ensureRedPacketPool();
+
+      // 1. 检查活动状态
+      if (!(await this.isActivityActive())) {
+        throw new Error('活动未开始或已结束');
+      }
+
+      // 2. 检查是否已领取
+      if (await this.hasReceived(userId)) {
+        throw new Error('每人限领1份');
+      }
+
+      // 3. 检查每日上限
+      await this.checkDailyLimit();
+
+      // 4. 检查红包库存
+      if (!(await this.redPacketAllocator.hasStock())) {
+        throw new Error('福袋已领完');
+      }
+
+      // 5. 分配红包（Redis 原子操作）
+      const redPacket = await this.redPacketAllocator.allocate();
+
+      // 6. 获取消费券（带库存检查）
+      const coupons = await this.allocateCoupons();
+
+      // 7. 获取政策链接
+      const policyConfig = await this.models.SystemConfig.findOne({
+        where: { config_key: 'policy_url' }
+      });
+
+      // 8. 使用事务创建记录 + 绑定消费券
+      const transaction = await this.models.sequelize.transaction();
+      let record;
+      try {
+        record = await this.models.LuckyBagRecord.create({
+          user_id: userId,
+          redpacket_amount: redPacket.amount,
+          redpacket_status: 1,
+          policy_url: policyConfig?.config_value || '',
+          ip,
+          user_agent: userAgent
+        }, { transaction });
+
+        await this.bindCoupons(userId, coupons, record.id, transaction);
+        await transaction.commit();
+      } catch (err) {
+        await transaction.rollback();
+        throw err;
+      }
+
+      // 9. 发送红包（异步，记录失败日志而非静默吞掉）
+      this.sendRedPacket(userId, redPacket.amount, record.id).catch(err => {
+        logger.error('异步红包发送失败', {
+          userId,
+          amount: redPacket.amount,
+          recordId: record.id,
+          error: err.message
+        });
+      });
+
+      return {
+        redPacket: {
+          amount: redPacket.amount,
+          blessing: redPacket.blessing
+        },
+        coupons: coupons.map(c => ({
+          id: c.id,
+          name: c.name,
+          amount: c.amount,
+          minSpend: c.min_spend,
+          validTo: c.valid_to
+        })),
+        policyUrl: policyConfig?.config_value || ''
+      };
+    } finally {
+      await this.redis.del(lockKey);
+    }
+  }
+
+  /**
+   * 分配消费券（带库存检查）
    */
   async allocateCoupons() {
-    // 获取启用的消费券，按类别分配
     const coupons = await this.models.Coupon.findAll({
       where: {
         status: 1,
         valid_from: { [Op.lte]: new Date() },
-        valid_to: { [Op.gte]: new Date() }
+        valid_to: { [Op.gte]: new Date() },
+        // 库存检查：总数量 > 已发放数量
+        [Op.and]: [
+          this.models.sequelize.literal('total_count > used_count')
+        ]
       },
       order: [['amount', 'DESC']],
       limit: 3
     });
-    
+
     return coupons;
   }
 
   /**
-   * 绑定消费券到用户
+   * 绑定消费券到用户（在事务内执行）
    */
-  async bindCoupons(userId, coupons, recordId) {
+  async bindCoupons(userId, coupons, recordId, transaction) {
     for (const coupon of coupons) {
-      // 生成唯一券码
       const code = this.generateCouponCode();
-      
+
       await this.models.UserCoupon.create({
         user_id: userId,
         coupon_id: coupon.id,
         code,
-        status: 1, // 未使用
+        status: 1,
         received_at: new Date()
+      }, { transaction });
+
+      // 原子递增已发放数量
+      await this.models.Coupon.increment('used_count', {
+        where: { id: coupon.id },
+        transaction
       });
-      
-      // 更新消费券已发放数量
-      await coupon.increment('used_count');
     }
   }
 
   /**
-   * 生成消费券码
+   * 生成消费券码（使用 crypto 安全随机数，避免碰撞）
    */
   generateCouponCode() {
-    const prefix = 'YB'; // 宜宾
-    const timestamp = Date.now().toString(36).toUpperCase();
-    const random = Math.random().toString(36).substring(2, 6).toUpperCase();
-    return `${prefix}${timestamp}${random}`;
+    const prefix = 'YB';
+    // 使用 crypto 生成 8 字节随机数（16 位十六进制字符）
+    const random = crypto.randomBytes(8).toString('hex').toUpperCase();
+    return `${prefix}${random}`;
   }
 
   /**
@@ -191,33 +246,30 @@ class LuckyBagService {
     if (!user || !user.openid) {
       throw new Error('用户信息不完整');
     }
-    
-    // 生成订单号
-    const orderNo = `RP${Date.now()}${userId}`;
-    
+
+    // 生成唯一订单号
+    const orderNo = `RP${Date.now()}${crypto.randomBytes(4).toString('hex')}`;
+
     try {
-      // 调用微信支付企业付款接口
       const result = await this.callWechatPay(user.openid, amount, orderNo);
-      
-      // 更新记录
+
       await this.models.LuckyBagRecord.update({
         redpacket_order_no: orderNo,
-        redpacket_status: 2, // 已发放
+        redpacket_status: 2,
         redpacket_sent_at: new Date()
       }, {
         where: { id: recordId }
       });
-      
+
       return result;
     } catch (error) {
-      // 更新为发放失败
       await this.models.LuckyBagRecord.update({
         redpacket_order_no: orderNo,
-        redpacket_status: 3 // 发放失败
+        redpacket_status: 3
       }, {
         where: { id: recordId }
       });
-      
+
       throw error;
     }
   }
@@ -245,11 +297,11 @@ class LuckyBagService {
     const record = await this.models.LuckyBagRecord.findOne({
       where: { user_id: userId }
     });
-    
+
     if (!record) {
       return null;
     }
-    
+
     const coupons = await this.models.UserCoupon.findAll({
       where: { user_id: userId },
       include: [{
@@ -257,7 +309,7 @@ class LuckyBagService {
         as: 'coupon'
       }]
     });
-    
+
     return {
       redPacket: {
         amount: record.redpacket_amount,
