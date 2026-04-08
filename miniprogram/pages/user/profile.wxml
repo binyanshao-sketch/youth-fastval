@@ -1,0 +1,82 @@
+<!--pages/user/profile.wxml-->
+<view class="container">
+  <!-- 用户信息卡片 -->
+  <view class="user-card">
+    <image class="user-avatar" src="{{userInfo.avatar || '/images/default-avatar.png'}}" mode="aspectFill"></image>
+    <view class="user-info">
+      <text class="user-name">{{userInfo.nickname || '未登录'}}</text>
+      <text class="user-phone">{{userInfo.phone || '请先登录'}}</text>
+    </view>
+    <button class="login-btn" wx:if="{{!userInfo}}" bindtap="goLogin">登录</button>
+  </view>
+
+  <!-- 统计数据 -->
+  <view class="stats-card">
+    <view class="stat-item" bindtap="goToRedpacket">
+      <text class="stat-value">{{stats.redpacketCount || 0}}</text>
+      <text class="stat-label">红包</text>
+    </view>
+    <view class="stat-item" bindtap="goToCoupon">
+      <text class="stat-value">{{stats.couponCount || 0}}</text>
+      <text class="stat-label">消费券</text>
+    </view>
+    <view class="stat-item">
+      <text class="stat-value">¥{{stats.totalAmount || '0.00'}}</text>
+      <text class="stat-label">已领取</text>
+    </view>
+  </view>
+
+  <!-- 功能菜单 -->
+  <view class="menu-list">
+    <view class="menu-item" bindtap="goToRedpacket">
+      <text class="menu-icon">🧧</text>
+      <text class="menu-text">我的红包</text>
+      <text class="menu-arrow">›</text>
+    </view>
+    
+    <view class="menu-item" bindtap="goToCoupon">
+      <text class="menu-icon">🎫</text>
+      <text class="menu-text">我的消费券</text>
+      <text class="menu-arrow">›</text>
+    </view>
+    
+    <view class="menu-item" bindtap="goToMerchant">
+      <text class="menu-icon">🏪</text>
+      <text class="menu-text">附近商家</text>
+      <text class="menu-arrow">›</text>
+    </view>
+    
+    <view class="menu-item" bindtap="goToPolicy">
+      <text class="menu-icon">📄</text>
+      <text class="menu-text">政策一本通</text>
+      <text class="menu-arrow">›</text>
+    </view>
+  </view>
+
+  <!-- 其他菜单 -->
+  <view class="menu-list">
+    <view class="menu-item" bindtap="showAbout">
+      <text class="menu-icon">ℹ️</text>
+      <text class="menu-text">关于活动</text>
+      <text class="menu-arrow">›</text>
+    </view>
+    
+    <view class="menu-item" bindtap="showRules">
+      <text class="menu-icon">📋</text>
+      <text class="menu-text">活动规则</text>
+      <text class="menu-arrow">›</text>
+    </view>
+    
+    <view class="menu-item" bindtap="contactService">
+      <text class="menu-icon">💬</text>
+      <text class="menu-text">联系客服</text>
+      <text class="menu-arrow">›</text>
+    </view>
+  </view>
+
+  <!-- 版权 -->
+  <view class="footer">
+    <text>主办单位：共青团宜宾市委</text>
+    <text>技术支持：戎琛网络</text>
+  </view>
+</view>

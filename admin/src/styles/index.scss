@@ -1,0 +1,44 @@
+:root {
+  --bg-page: #f3efe7;
+  --bg-panel: #fffdf8;
+  --text-main: #1f2933;
+  --text-muted: #5f6c7b;
+  --line: #e6ddd2;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  margin: 0;
+  min-height: 100%;
+  font-family: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  color: var(--text-main);
+  background: radial-gradient(circle at top, #fff8ee 0%, var(--bg-page) 55%, #ece3d7 100%);
+}
+
+.page-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: 0 16px 40px rgba(17, 24, 39, 0.06);
+}
+
+.page-stack {
+  display: grid;
+  gap: 20px;
+}
+
+.page-title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.page-subtitle {
+  margin-top: 6px;
+  color: var(--text-muted);
+}

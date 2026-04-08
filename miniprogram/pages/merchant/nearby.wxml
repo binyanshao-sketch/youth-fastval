@@ -1,0 +1,65 @@
+<!--pages/merchant/nearby.wxml-->
+<view class="container">
+  <!-- 搜索 -->
+  <view class="search-box">
+    <input 
+      class="search-input" 
+      placeholder="搜索商家名称" 
+      value="{{keyword}}"
+      bindinput="onSearchInput"
+    />
+  </view>
+
+  <!-- 筛选 -->
+  <scroll-view class="filter-bar" scroll-x>
+    <view 
+      class="filter-item {{currentCategory === '' ? 'active' : ''}}"
+      bindtap="filterCategory"
+      data-category=""
+    >
+      全部
+    </view>
+    <view 
+      class="filter-item {{currentCategory === item.id ? 'active' : ''}}"
+      wx:for="{{categories}}"
+      wx:key="id"
+      bindtap="filterCategory"
+      data-category="{{item.id}}"
+    >
+      {{item.name}}
+    </view>
+  </scroll-view>
+
+  <!-- 商家列表 -->
+  <view class="merchant-list">
+    <view class="merchant-item" wx:for="{{merchants}}" wx:key="id" bindtap="goToDetail" data-id="{{item.id}}">
+      <image class="merchant-logo" src="{{item.logo || '/images/default-merchant.png'}}" mode="aspectFill"></image>
+      
+      <view class="merchant-info">
+        <view class="merchant-name">{{item.name}}</view>
+        <view class="merchant-category">{{item.category}}</view>
+        <view class="merchant-address">📍 {{item.address}}</view>
+        
+        <view class="coupon-info" wx:if="{{item.couponInfo}}">
+          <text class="coupon-tag">支持消费券</text>
+          <text class="coupon-count">{{item.couponInfo}}</text>
+        </view>
+      </view>
+      
+      <view class="merchant-distance" wx:if="{{item.distance}}">
+        {{item.distance}}
+      </view>
+    </view>
+  </view>
+
+  <!-- 空状态 -->
+  <view class="empty" wx:if="{{merchants.length === 0 && !loading}}">
+    <image src="/images/empty-merchant.png" mode="aspectFit"></image>
+    <text>暂无商家</text>
+  </view>
+
+  <!-- 加载中 -->
+  <view class="loading" wx:if="{{loading}}">
+    <text>加载中...</text>
+  </view>
+</view>

@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>商家核销 - 五四青春福袋</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- 登录页面 -->
+    <div class="page login-page" v-if="!isLoggedIn">
+      <div class="login-box">
+        <div class="logo">
+          <img src="/images/logo.png" alt="Logo">
+          <h1>商家核销端</h1>
+        </div>
+        
+        <form @submit.prevent="login">
+          <div class="form-group">
+            <input type="tel" v-model="phone" placeholder="请输入手机号" maxlength="11" required>
+          </div>
+          
+          <div class="form-group code-group">
+            <input type="text" v-model="code" placeholder="验证码" maxlength="6" required>
+            <button type="button" class="code-btn" :disabled="countdown > 0" @click="sendCode">
+              {{ countdown > 0 ? countdown + 's' : '获取验证码' }}
+            </button>
+          </div>
+          
+          <button type="submit" class="login-btn" :disabled="loading">
+            {{ loading ? '登录中...' : '登录' }}
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- 主页面 -->
+    <div class="page main-page" v-else>
+      <!-- 头部 -->
+      <header class="header">
+        <div class="merchant-info">
+          <h2>{{ merchant.name }}</h2>
+          <p>{{ merchant.category }}</p>
+        </div>
+        <button class="logout-btn" @click="logout">退出</button>
+      </header>
+
+      <!-- 统计 -->
+      <div class="stats-box">
+        <div class="stat-item">
+          <div class="stat-value">{{ stats.todayCount }}</div>
+          <div class="stat-label">今日核销</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value">¥{{ stats.todayAmount }}</div>
+          <div class="stat-label">今日金额</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value">{{ stats.totalCount }}</div>
+          <div class="stat-label">累计核销</div>
+        </div>
+      </div>
+
+      <!-- 核销入口 -->
+      <div class="actions-box">
+        <button class="action-btn scan-btn" @click="scanCode">
+          <span class="icon">📷</span>
+          <span class="text">扫码核销</span>
+        </button>
+        <button class="action-btn input-btn" @click="showInputDialog = true">
+          <span class="icon">⌨️</span>
+          <span class="text">手动输入</span>
+        </button>
+      </div>
+
+      <!-- 核销记录 -->
+      <div class="records-box">
+        <h3>核销记录</h3>
+        <div class="record-list">
+          <div class="record-item" v-for="record in records" :key="record.id">
+            <div class="record-left">
+              <div class="record-code">{{ record.code }}</div>
+              <div class="record-time">{{ record.time }}</div>
+            </div>
+            <div class="record-right">
+              ¥{{ record.amount }}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 手动输入弹窗 -->
+    <div class="modal" v-if="showInputDialog" @click.self="showInputDialog = false">
+      <div class="modal-content">
+        <h3>输入券码</h3>
+        <input type="text" v-model="inputCode" placeholder="请输入消费券码" maxlength="20">
+        <div class="modal-actions">
+          <button class="cancel-btn" @click="showInputDialog = false">取消</button>
+          <button class="confirm-btn" @click="verifyCode">核销</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 核销结果弹窗 -->
+    <div class="modal" v-if="showResultDialog" @click.self="closeResult">
+      <div class="modal-content result-modal">
+        <div class="result-icon" :class="result.success ? 'success' : 'error'">
+          {{ result.success ? '✓' : '✗' }}
+        </div>
+        <h3>{{ result.success ? '核销成功' : result.message }}</h3>
+        <div class="result-info" v-if="result.success">
+          <p>券码：{{ result.code }}</p>
+          <p>面额：¥{{ result.amount }}</p>
+        </div>
+        <button class="confirm-btn" @click="closeResult">确定</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html>

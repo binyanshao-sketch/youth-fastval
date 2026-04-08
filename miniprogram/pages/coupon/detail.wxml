@@ -1,0 +1,42 @@
+<!--pages/coupon/detail.wxml-->
+<view class="container">
+  <view class="coupon-detail">
+    <!-- 消费券信息 -->
+    <view class="coupon-header">
+      <view class="coupon-amount-box">
+        <text class="currency">¥</text>
+        <text class="amount">{{coupon.amount}}</text>
+      </view>
+      <text class="coupon-name">{{coupon.name}}</text>
+      <text class="coupon-condition">满{{coupon.minSpend}}元可用</text>
+    </view>
+    
+    <!-- 核销码 -->
+    <view class="qrcode-section" wx:if="{{status === 1}}">
+      <text class="qrcode-title">核销码</text>
+      <view class="qrcode-box">
+        <image class="qrcode-img" src="{{qrcodeUrl}}" mode="aspectFit"></image>
+      </view>
+      <text class="qrcode-text">{{code}}</text>
+      <text class="qrcode-tips">请向商家出示此码</text>
+    </view>
+    
+    <!-- 有效期 -->
+    <view class="info-section">
+      <view class="info-item">
+        <text class="info-label">有效期</text>
+        <text class="info-value">{{coupon.validFrom}} 至 {{coupon.validTo}}</text>
+      </view>
+      <view class="info-item">
+        <text class="info-label">使用说明</text>
+        <text class="info-value">{{coupon.description || '无'}}</text>
+      </view>
+    </view>
+    
+    <!-- 附近商家 -->
+    <view class="merchant-section" bindtap="goToNearby">
+      <text class="merchant-title">附近可用商家</text>
+      <text class="merchant-arrow">›</text>
+    </view>
+  </view>
+</view>

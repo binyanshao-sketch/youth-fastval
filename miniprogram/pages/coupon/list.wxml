@@ -1,0 +1,60 @@
+<!--pages/coupon/list.wxml-->
+<view class="container">
+  <!-- 标签切换 -->
+  <view class="tabs">
+    <view class="tab-item {{currentTab === 0 ? 'active' : ''}}" bindtap="switchTab" data-tab="0">
+      未使用({{unusedCount}})
+    </view>
+    <view class="tab-item {{currentTab === 1 ? 'active' : ''}}" bindtap="switchTab" data-tab="1">
+      已使用({{usedCount}})
+    </view>
+    <view class="tab-item {{currentTab === 2 ? 'active' : ''}}" bindtap="switchTab" data-tab="2">
+      已过期({{expiredCount}})
+    </view>
+  </view>
+
+  <!-- 消费券列表 -->
+  <view class="coupon-list" wx:if="{{coupons.length > 0}}">
+    <view class="coupon-card" wx:for="{{coupons}}" wx:key="id" bindtap="goToDetail" data-id="{{item.id}}">
+      <view class="coupon-left {{item.status === 1 ? '' : 'disabled'}}">
+        <text class="coupon-amount">¥{{item.coupon.amount}}</text>
+        <text class="coupon-condition">满{{item.coupon.minSpend}}可用</text>
+      </view>
+      
+      <view class="coupon-right">
+        <text class="coupon-name">{{item.coupon.name}}</text>
+        <text class="coupon-date">{{item.coupon.validFrom}} - {{item.coupon.validTo}}</text>
+        <view class="coupon-status status-{{item.status}}">
+          {{item.status === 1 ? '未使用' : item.status === 2 ? '已使用' : '已过期'}}
+        </view>
+      </view>
+      
+      <view class="coupon-divider" wx:if="{{item.status === 1}}">
+        <view class="circle-top"></view>
+        <view class="dash-line"></view>
+        <view class="circle-bottom"></view>
+      </view>
+      
+      <view class="coupon-used-mask" wx:if="{{item.status !== 1}}">
+        <image src="/images/used-stamp.png" mode="aspectFit"></image>
+      </view>
+    </view>
+  </view>
+
+  <!-- 空状态 -->
+  <view class="empty-state" wx:if="{{coupons.length === 0}}">
+    <image src="/images/empty-coupon.png" mode="aspectFit"></image>
+    <text>暂无消费券</text>
+  </view>
+
+  <!-- 使用说明 -->
+  <view class="tips-card">
+    <text class="tips-title">使用说明</text>
+    <view class="tips-content">
+      <text>1. 消费券可在指定商家使用</text>
+      <text>2. 结账时出示核销码即可抵扣</text>
+      <text>3. 每张消费券仅限使用一次</text>
+      <text>4. 请在有效期内使用</text>
+    </view>
+  </view>
+</view>

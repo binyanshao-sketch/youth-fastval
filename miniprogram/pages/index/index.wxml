@@ -1,0 +1,104 @@
+<!--pages/index/index.wxml-->
+<view class="container">
+  <!-- 轮播图 -->
+  <swiper class="banner" indicator-dots autoplay circular>
+    <swiper-item wx:for="{{banners}}" wx:key="id">
+      <image src="{{item.image}}" mode="aspectFill" bindtap="onBannerTap" data-url="{{item.url}}"></image>
+    </swiper-item>
+  </swiper>
+
+  <!-- 活动状态 -->
+  <view class="status-card card">
+    <view class="status-header">
+      <text class="status-title">🎉 五四青春福袋</text>
+      <text class="status-badge {{isActive ? 'active' : ''}}">{{statusText}}</text>
+    </view>
+    
+    <view wx:if="{{!isActive && countdown}}" class="countdown">
+      <text class="countdown-label">距离开始还有</text>
+      <view class="countdown-time">
+        <text class="time-item">{{countdown.days}}</text>
+        <text class="time-unit">天</text>
+        <text class="time-item">{{countdown.hours}}</text>
+        <text class="time-unit">时</text>
+        <text class="time-item">{{countdown.minutes}}</text>
+        <text class="time-unit">分</text>
+        <text class="time-item">{{countdown.seconds}}</text>
+        <text class="time-unit">秒</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 福袋入口 -->
+  <view class="lucky-bag-section">
+    <view class="lucky-bag-box" bindtap="onReceiveTap">
+      <image class="lucky-bag-img" src="/images/lucky-bag.png" mode="aspectFit"></image>
+      <view class="lucky-bag-info">
+        <text class="lucky-bag-title">点击领取青春福袋</text>
+        <text class="lucky-bag-desc">红包 + 消费券 + 政策福利</text>
+      </view>
+    </view>
+    
+    <!-- 领取按钮 -->
+    <button 
+      class="receive-btn btn-primary {{!isActive || hasReceived ? 'btn-disabled' : ''}}" 
+      bindtap="onReceiveTap"
+      disabled="{{!isActive || hasReceived}}"
+    >
+      {{hasReceived ? '已领取' : '立即领取'}}
+    </button>
+  </view>
+
+  <!-- 我的福利 -->
+  <view class="my-welfare card" wx:if="{{hasReceived}}">
+    <view class="section-header">
+      <text class="section-title">我的福利</text>
+    </view>
+    
+    <view class="welfare-list">
+      <view class="welfare-item" bindtap="goToRedpacket">
+        <view class="welfare-icon redpacket-icon">🧧</view>
+        <view class="welfare-info">
+          <text class="welfare-name">现金红包</text>
+          <text class="welfare-value">¥{{myRedpacket.amount || '0.00'}}</text>
+        </view>
+        <text class="welfare-arrow">›</text>
+      </view>
+      
+      <view class="welfare-item" bindtap="goToCoupon">
+        <view class="welfare-icon coupon-icon">🎫</view>
+        <view class="welfare-info">
+          <text class="welfare-name">消费券</text>
+          <text class="welfare-value">{{myCoupons.length}}张</text>
+        </view>
+        <text class="welfare-arrow">›</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 活动规则 -->
+  <view class="rules-card card">
+    <view class="section-header">
+      <text class="section-title">活动规则</text>
+    </view>
+    <view class="rules-content">
+      <view class="rule-item">1. 活动时间：2026年4月15日-5月4日</view>
+      <view class="rule-item">2. 每人限领1份福袋</view>
+      <view class="rule-item">3. 红包可提现至微信零钱</view>
+      <view class="rule-item">4. 消费券可在指定商家使用</view>
+      <view class="rule-item">5. 最终解释权归共青团宜宾市委所有</view>
+    </view>
+  </view>
+
+  <!-- 推广入口 -->
+  <view class="promo-section">
+    <view class="promo-item" bindtap="goToMerchant">
+      <image src="/images/icon-merchant.png"></image>
+      <text>附近商家</text>
+    </view>
+    <view class="promo-item" bindtap="goToPolicy">
+      <image src="/images/icon-policy.png"></image>
+      <text>政策一本通</text>
+    </view>
+  </view>
+</view>

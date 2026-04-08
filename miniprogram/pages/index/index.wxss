@@ -1,0 +1,232 @@
+/* pages/index/index.wxss */
+.container {
+  min-height: 100vh;
+  padding-bottom: 20rpx;
+}
+
+/* 轮播图 */
+.banner {
+  width: 100%;
+  height: 360rpx;
+}
+
+.banner image {
+  width: 100%;
+  height: 100%;
+}
+
+/* 状态卡片 */
+.status-card {
+  margin-top: -40rpx;
+  position: relative;
+  z-index: 10;
+}
+
+.status-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20rpx;
+}
+
+.status-title {
+  font-size: 36rpx;
+  font-weight: bold;
+}
+
+.status-badge {
+  padding: 8rpx 20rpx;
+  border-radius: 30rpx;
+  font-size: 24rpx;
+  background: #f5f5f5;
+  color: #999;
+}
+
+.status-badge.active {
+  background: #e8f5e9;
+  color: #4caf50;
+}
+
+/* 倒计时 */
+.countdown {
+  text-align: center;
+  padding: 30rpx 0;
+}
+
+.countdown-label {
+  font-size: 28rpx;
+  color: #666;
+  margin-bottom: 20rpx;
+  display: block;
+}
+
+.countdown-time {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10rpx;
+}
+
+.time-item {
+  display: inline-block;
+  width: 80rpx;
+  height: 80rpx;
+  line-height: 80rpx;
+  text-align: center;
+  background: linear-gradient(135deg, #E54D42 0%, #F37B1D 100%);
+  color: #fff;
+  border-radius: 12rpx;
+  font-size: 36rpx;
+  font-weight: bold;
+}
+
+.time-unit {
+  font-size: 24rpx;
+  color: #666;
+}
+
+/* 福袋入口 */
+.lucky-bag-section {
+  padding: 40rpx 30rpx;
+}
+
+.lucky-bag-box {
+  background: linear-gradient(135deg, #E54D42 0%, #F37B1D 100%);
+  border-radius: 30rpx;
+  padding: 60rpx 40rpx;
+  display: flex;
+  align-items: center;
+  box-shadow: 0 10rpx 40rpx rgba(229, 77, 66, 0.3);
+}
+
+.lucky-bag-img {
+  width: 180rpx;
+  height: 180rpx;
+  margin-right: 40rpx;
+}
+
+.lucky-bag-info {
+  flex: 1;
+}
+
+.lucky-bag-title {
+  display: block;
+  font-size: 40rpx;
+  font-weight: bold;
+  color: #fff;
+  margin-bottom: 16rpx;
+}
+
+.lucky-bag-desc {
+  font-size: 28rpx;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.receive-btn {
+  width: 100%;
+  margin-top: 40rpx;
+  height: 88rpx;
+  line-height: 88rpx;
+  font-size: 32rpx;
+}
+
+/* 我的福利 */
+.my-welfare {
+  margin-top: 40rpx;
+}
+
+.section-header {
+  margin-bottom: 20rpx;
+}
+
+.section-title {
+  font-size: 32rpx;
+  font-weight: bold;
+}
+
+.welfare-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+}
+
+.welfare-item {
+  display: flex;
+  align-items: center;
+  padding: 20rpx;
+  background: #f9f9f9;
+  border-radius: 16rpx;
+}
+
+.welfare-icon {
+  width: 80rpx;
+  height: 80rpx;
+  line-height: 80rpx;
+  text-align: center;
+  font-size: 48rpx;
+  background: #fff;
+  border-radius: 16rpx;
+  margin-right: 20rpx;
+}
+
+.welfare-info {
+  flex: 1;
+}
+
+.welfare-name {
+  display: block;
+  font-size: 28rpx;
+  color: #666;
+  margin-bottom: 8rpx;
+}
+
+.welfare-value {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #E54D42;
+}
+
+.welfare-arrow {
+  font-size: 40rpx;
+  color: #ccc;
+}
+
+/* 活动规则 */
+.rules-card {
+  margin-top: 30rpx;
+}
+
+.rules-content {
+  padding: 10rpx 0;
+}
+
+.rule-item {
+  font-size: 26rpx;
+  color: #666;
+  line-height: 50rpx;
+}
+
+/* 推广入口 */
+.promo-section {
+  display: flex;
+  justify-content: space-around;
+  padding: 40rpx 30rpx;
+  margin-top: 20rpx;
+}
+
+.promo-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.promo-item image {
+  width: 100rpx;
+  height: 100rpx;
+  margin-bottom: 16rpx;
+}
+
+.promo-item text {
+  font-size: 26rpx;
+  color: #666;
+}

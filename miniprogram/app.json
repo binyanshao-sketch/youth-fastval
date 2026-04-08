@@ -1,0 +1,47 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/lucky-bag/receive",
+    "pages/lucky-bag/result",
+    "pages/redpacket/list",
+    "pages/coupon/list",
+    "pages/coupon/detail",
+    "pages/merchant/nearby",
+    "pages/policy/index",
+    "pages/user/profile"
+  ],
+  "window": {
+    "backgroundTextStyle": "light",
+    "navigationBarBackgroundColor": "#E54D42",
+    "navigationBarTitleText": "五四青春福袋",
+    "navigationBarTextStyle": "white"
+  },
+  "tabBar": {
+    "color": "#999999",
+    "selectedColor": "#E54D42",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "首页",
+        "iconPath": "images/tab-home.png",
+        "selectedIconPath": "images/tab-home-active.png"
+      },
+      {
+        "pagePath": "pages/coupon/list",
+        "text": "消费券",
+        "iconPath": "images/tab-coupon.png",
+        "selectedIconPath": "images/tab-coupon-active.png"
+      },
+      {
+        "pagePath": "pages/user/profile",
+        "text": "我的",
+        "iconPath": "images/tab-user.png",
+        "selectedIconPath": "images/tab-user-active.png"
+      }
+    ]
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

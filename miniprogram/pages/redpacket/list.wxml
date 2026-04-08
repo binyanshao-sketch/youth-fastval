@@ -1,0 +1,50 @@
+<!--pages/redpacket/list.wxml-->
+<view class="container">
+  <!-- 标题 -->
+  <view class="header">
+    <text class="title">我的红包</text>
+    <text class="subtitle">共{{total}}个红包</text>
+  </view>
+
+  <!-- 红包列表 -->
+  <view class="redpacket-list" wx:if="{{list.length > 0}}">
+    <view class="redpacket-item" wx:for="{{list}}" wx:key="id">
+      <view class="redpacket-left">
+        <text class="amount">¥{{item.amount}}</text>
+        <text class="blessing">{{item.blessing}}</text>
+      </view>
+      
+      <view class="redpacket-right">
+        <view class="status status-{{item.status}}">
+          {{item.status === 1 ? '待提现' : item.status === 2 ? '已提现' : '已过期'}}
+        </view>
+        <text class="time">{{item.createTime}}</text>
+        
+        <button 
+          class="withdraw-btn" 
+          wx:if="{{item.status === 1}}"
+          catchtap="withdraw"
+          data-id="{{item.id}}"
+        >
+          提现
+        </button>
+      </view>
+    </view>
+  </view>
+
+  <!-- 空状态 -->
+  <view class="empty" wx:if="{{list.length === 0}}">
+    <image src="/images/empty-redpacket.png" mode="aspectFit"></image>
+    <text>暂无红包</text>
+  </view>
+
+  <!-- 提现说明 -->
+  <view class="tips">
+    <text class="tips-title">提现说明</text>
+    <view class="tips-content">
+      <text>1. 红包可提现至微信零钱</text>
+      <text>2. 提现后实时到账</text>
+      <text>3. 请在有效期内提现</text>
+    </view>
+  </view>
+</view>
