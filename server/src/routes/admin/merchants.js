@@ -66,10 +66,10 @@ router.get('/:id', adminAuth, async (req, res) => {
   }
 })
 
-router.post('/', adminWriteAuth, [body('name').isLength({ min: 2, max: 100 }).withMessage('商家名称不合法'), body('phone').isMobilePhone('zh-CN').withMessage('联系电话格式错误'), body('category').isLength({ min: 1, max: 50 }).withMessage('分类不合法'), body('address').isLength({ min: 3, max: 200 }).withMessage('地址不合法'), body('contactName').optional().isLength({ min: 1, max: 50 }).withMessage('联系人不合法'), validate], async (req, res) => {
+router.post('/', adminWriteAuth, [body('name').isLength({ min: 2, max: 100 }).withMessage('商家名称不合法'), body('phone').isMobilePhone('zh-CN').withMessage('联系电话格式错误'), body('category').isLength({ min: 1, max: 50 }).withMessage('分类不合法'), body('address').isLength({ min: 3, max: 200 }).withMessage('地址不合法'), body('contactName').optional().isLength({ min: 1, max: 50 }).withMessage('联系人不合法'), body('licenseImage').optional().isURL().withMessage('营业执照图片 URL 格式不正确'), validate], async (req, res) => {
   try {
     const { Merchant } = req.models
-    const { name, phone, category, address, contactName } = req.body
+    const { name, phone, category, address, contactName, licenseImage } = req.body
 
     if (!name || !phone || !category || !address) {
       return res.status(400).json({ success: false, message: '缺少必要参数' })
@@ -81,6 +81,7 @@ router.post('/', adminWriteAuth, [body('name').isLength({ min: 2, max: 100 }).wi
       category,
       address,
       contact_name: contactName,
+      license_image: licenseImage || null,
       status: 1,
       created_at: new Date()
     })

@@ -27,6 +27,7 @@ function vibrateLong() {
 Page({
   data: {
     loading: true,
+    pageEntered: false,
     activeMode: 'wheel',
     activeModeLabel: '大转盘',
     mode: 'wheel',
@@ -46,10 +47,14 @@ Page({
   },
 
   onLoad() {
+    this.pageEntryTimer = setTimeout(() => {
+      this.setData({ pageEntered: true });
+    }, 60);
     this.bootstrap();
   },
 
   onUnload() {
+    clearTimeout(this.pageEntryTimer);
     clearTimeout(this.gridTimer);
     clearTimeout(this.drawTimer);
   },

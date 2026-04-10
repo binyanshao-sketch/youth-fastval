@@ -91,6 +91,44 @@ class WeChatService {
     return payload.phoneNumber;
   }
 
+  /**
+   * 微信公众号 H5 OAuth 登录（snsapi_base 静默授权，仅获取 openid）
+   * 需要配置 WX_H5_APPID / WX_H5_SECRET 环境变量
+   */
+  async h5OAuth(code) {
+    if (this.isMockMode()) {
+      return {
+        openid: `h5wx_test_${code}`,
+        unionid: null
+      };
+    }
+
+    const appId = process.env.WX_H5_APPID;
+    const secret = process.env.WX_H5_SECRET;
+    if (!appId || !secret) {
+      throw new Error('微信公众号未配置（缺少 WX_H5_APPID / WX_H5_SECRET）');
+    }
+
+    const response = await axios.get('https://api.weixin.qq.com/sns/oauth2/access_token', {
+      params: {
+        appid: appId,
+        secret,
+        code,
+        grant_type: 'authorization_code'
+      },
+      timeout: 10000
+    });
+
+    if (response.data.errcode) {
+      throw new Error(response.data.errmsg || '微信授权失败');
+    }
+
+    return {
+      openid: response.data.openid,
+      unionid: response.data.unionid || null
+    };
+  }
+
   async transferToBalance(openid, amount, orderNo) {
     if (this.isMockMode()) {
       return {

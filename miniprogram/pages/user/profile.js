@@ -72,11 +72,5 @@ Page({
 
   goToLottery() {
     wx.navigateTo({ url: '/pages/lottery/index' });
-  },
-
-  contactService() {
-    wx.makePhoneCall({
-      phoneNumber: serviceInfo.phone
-    });
   }
 });

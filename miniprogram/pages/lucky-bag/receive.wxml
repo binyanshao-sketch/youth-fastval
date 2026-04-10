@@ -2,7 +2,7 @@
   <view class="receive-hero surface-card">
     <text class="hero-kicker receive-kicker">第一屏 · 九选一</text>
     <text class="receive-title">先挑一个你最想拆开的红包</text>
-    <text class="receive-desc">九个红包全部可选，选定后随机命中金额，并立刻生成你的青春祝福海报。</text>
+    <text class="receive-desc">九个红包全部可选，选定后随机命中金额，并立刻生成青春祝福海报。页面灵感来自宜宾三江水色与竹海清风。</text>
   </view>
 
   <view class="bag-grid">

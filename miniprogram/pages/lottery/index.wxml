@@ -1,19 +1,19 @@
-<view class="page-shell lottery-page">
-  <view class="lottery-hero surface-card">
+<view class="page-shell lottery-page {{pageEntered ? 'page-entered' : ''}}">
+  <view class="lottery-hero surface-card stagger-item stage-1">
     <text class="hero-kicker lottery-kicker">&#24403;&#21069;&#21551;&#29992;&#29609;&#27861;</text>
-    <text class="lottery-title">{{activeModeLabel}}&#22870;&#27744;&#24050;&#30001;&#21518;&#21488;&#38145;&#23450;</text>
-    <text class="lottery-desc">{{result && result.gameType !== activeMode ? '\u4f60\u7684\u4e2d\u5956\u8bb0\u5f55\u6765\u81ea' + (result.gameType === 'grid' ? '\u4e5d\u5bab\u683c' : '\u5927\u8f6c\u76d8') + '\uff0c\u5f53\u524d\u6d3b\u52a8\u5df2\u5207\u6362\u4e3a' + activeModeLabel + '\u3002' : '\u5ba2\u6237\u7aef\u4ec5\u5c55\u793a\u540e\u53f0\u5f53\u524d\u542f\u7528\u7684' + activeModeLabel + '\uff0c\u4e0d\u518d\u5141\u8bb8\u9875\u9762\u672c\u5730\u5207\u6362\u73a9\u6cd5\u3002'}}
+    <text class="lottery-title">三江青年抽奖区 · {{activeModeLabel}}</text>
+    <text class="lottery-desc">{{result && result.gameType !== activeMode ? '\u4f60\u7684\u4e2d\u5956\u8bb0\u5f55\u6765\u81ea' + (result.gameType === 'grid' ? '\u4e5d\u5bab\u683c' : '\u5927\u8f6c\u76d8') + '\uff0c\u5f53\u524d\u6d3b\u52a8\u5df2\u5207\u6362\u4e3a' + activeModeLabel + '\u3002' : '\u5956\u6c60\u7075\u611f\u6765\u81ea\u5b9c\u5bbe\u4e09\u6c5f\u6f6e\u8272\u4e0e\u7af9\u6d77\u5f8b\u52a8\uff0c\u9875\u9762\u4ec5\u5c55\u793a\u5f53\u524d\u542f\u7528\u7684' + activeModeLabel + '\u73a9\u6cd5\u3002'}}
     </text>
   </view>
 
-  <view class="glass-card mode-switch-v3">
+  <view class="glass-card mode-switch-v3 stagger-item stage-2">
     <view class="section-head">
       <text class="section-title small">&#24403;&#21069;&#21551;&#29992;&#29609;&#27861;</text>
       <text class="status-chip active">{{activeModeLabel}}</text>
     </view>
   </view>
 
-  <view wx:if="{{mode === 'wheel'}}" class="wheel-panel surface-card">
+  <view wx:if="{{mode === 'wheel'}}" class="wheel-panel surface-card stagger-item stage-3 {{drawing ? 'is-drawing' : ''}}">
     <view class="wheel-stage">
       <view class="wheel-pointer wheel-pointer-v3"></view>
       <view
@@ -31,7 +31,7 @@
     </view>
   </view>
 
-  <view wx:if="{{mode === 'grid'}}" class="grid-panel surface-card">
+  <view wx:if="{{mode === 'grid'}}" class="grid-panel surface-card stagger-item stage-3 {{drawing ? 'is-drawing' : ''}}">
     <view class="grid-board">
       <view
         class="grid-cell {{item.prizeIndex === gridActiveIndex ? 'active' : ''}} {{item.isCenter ? 'center' : ''}}"
@@ -49,7 +49,7 @@
     </view>
   </view>
 
-  <view wx:if="{{result}}" class="glass-card result-card">
+  <view wx:if="{{result}}" class="glass-card result-card stagger-item stage-4 {{result ? 'did-win' : ''}}">
     <view class="section-head">
       <text class="section-title">抽奖结果</text>
       <text class="status-chip active">{{result.gameType === 'wheel' ? '大转盘' : '九宫格'}}</text>
@@ -62,7 +62,17 @@
     <button class="secondary-btn" bindtap="goToPoster">返回查看荣誉卡片</button>
   </view>
 
-  <view wx:if="{{!result && !loading}}" class="empty-panel">
+  <view wx:if="{{!result && !loading}}" class="empty-panel stagger-item stage-4">
     {{'\u5f53\u524d\u62bd\u5956\u533a\u4ec5\u5c55\u793a\u540e\u53f0\u542f\u7528\u7684' + activeModeLabel + '\uff0c\u9875\u9762\u6240\u793a\u5956\u6c60\u5c31\u662f\u4f60\u5b9e\u9645\u53c2\u4e0e\u7684\u5956\u6c60\u3002'}}
+  </view>
+
+  <view wx:if="{{loading}}" class="startup-overlay">
+    <view class="startup-card">
+      <view class="startup-spinner"></view>
+      <view class="startup-copy">
+        <text class="startup-title">三江青年加载中</text>
+        <text class="startup-desc">正在同步抽奖奖池与权益状态...</text>
+      </view>
+    </view>
   </view>
 </view>

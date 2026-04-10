@@ -11,6 +11,7 @@ services:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf
       - ./nginx/ssl:/etc/nginx/ssl
       - ./admin/dist:/usr/share/nginx/html/admin
+      - ./client-h5:/usr/share/nginx/html/client
       - ./merchant-h5:/usr/share/nginx/html/merchant
     depends_on:
       server:
@@ -35,12 +36,12 @@ services:
       - DB_PORT=3306
       - DB_NAME=youth_fastval
       - DB_USER=app_user
-      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_PASSWORD=${DB_PASSWORD:?DB_PASSWORD is required}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD:?REDIS_PASSWORD is required}
-      - JWT_SECRET=${JWT_SECRET}
-      - CORS_ORIGINS=${CORS_ORIGINS}
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
+      - CORS_ORIGINS=${CORS_ORIGINS:?CORS_ORIGINS is required}
       - WX_APPID=${WX_APPID}
       - WX_SECRET=${WX_SECRET}
       - WX_PAY_MCHID=${WX_PAY_MCHID}
@@ -54,6 +55,13 @@ services:
       - TENCENT_SMS_APP_ID=${TENCENT_SMS_APP_ID}
       - TENCENT_SMS_TEMPLATE_ID=${TENCENT_SMS_TEMPLATE_ID}
       - TENCENT_SMS_SIGN=${TENCENT_SMS_SIGN}
+      - WX_H5_APPID=${WX_H5_APPID:-}
+      - WX_H5_SECRET=${WX_H5_SECRET:-}
+      - QINIU_ACCESS_KEY=${QINIU_ACCESS_KEY:-}
+      - QINIU_SECRET_KEY=${QINIU_SECRET_KEY:-}
+      - QINIU_BUCKET=${QINIU_BUCKET:-}
+      - QINIU_CDN_DOMAIN=${QINIU_CDN_DOMAIN:-}
+      - QINIU_UPLOAD_URL=${QINIU_UPLOAD_URL:-https://up-z2.qiniup.com}
     volumes:
       - ./server/certs:/app/certs
     depends_on:

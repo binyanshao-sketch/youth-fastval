@@ -8,7 +8,7 @@
       <text class="hero-title accent">红包、海报、抽奖一屏衔接</text>
     </view>
     <view class="hero-desc">
-      领取福袋后，结果海报会随机弹出，页面自动滑到抽奖区。整个流程保持在首页完成，不再切换多个页面寻找下一步。
+      以宜宾三江交汇和竹海风景为灵感，领取福袋后海报随机弹出，页面自动滑到抽奖区。整条链路在首页一步完成，更青春、更流畅。
     </view>
 
     <view class="hero-actions">
@@ -50,7 +50,7 @@
 
   <view class="flow glass-card stagger-item stage-2">
     <view class="section-head">
-      <text class="section-title">三步完成体验</text>
+      <text class="section-title">三江青年体验路线</text>
       <text class="section-subtitle">领取、海报、抽奖已经串成一条完整流程</text>
     </view>
     <view class="flow-list">
@@ -65,7 +65,7 @@
         <view class="flow-index">02</view>
         <view class="flow-body">
           <text class="flow-title">随机弹出荣誉海报</text>
-          <text class="flow-text">领取完成后，系统会随机展示红包海报或分享海报，形成更完整的结果仪式感。</text>
+          <text class="flow-text">领取完成后，系统会随机展示红包海报或分享海报，融入宜宾江景与竹影气质，形成更完整的结果仪式感。</text>
         </view>
       </view>
       <view class="flow-item">
@@ -246,6 +246,16 @@
         </view>
 
         <button class="secondary-btn" bindtap="closePosterPopup">收起海报</button>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{booting}}" class="startup-overlay">
+    <view class="startup-card">
+      <view class="startup-spinner"></view>
+      <view class="startup-copy">
+        <text class="startup-title">三江青年加载中</text>
+        <text class="startup-desc">正在进入宜宾青春福袋...</text>
       </view>
     </view>
   </view>

@@ -1,12 +1,12 @@
 window.CLIENT_H5_CONTENT = {
   activityRules: [
-    '每位青年用户限领 1 次青春福袋，拆袋后红包金额随机发放。',
-    '测试模式下红包结果仅做页面与流程验证，不会真实支付到微信零钱。',
-    '消费券、政策福利和抽奖结果会同步进入你的权益页，可随时查看。',
-    '福袋开启后即可继续参与抽奖，页面所见奖池即为当前实际奖池。'
+    '每位青年用户在活动周期内限领 1 次青春福袋，开袋后红包金额随机发放。',
+    '界面主色灵感来自宜宾三江交汇与蜀南竹海，青蓝与翠绿对应江水流线与竹影层次。',
+    '红包将通过小程序或公众号通道发放至微信零钱，请留意到账提醒与消息通知。',
+    '消费券和政策福利会同步进入你的青年权益页，可随时查看、核销和继续使用。',
+    '福袋开启后可继续参与首页抽奖区，页面所示奖池即为当前启用玩法。'
   ],
   serviceInfo: {
-    phone: '08311234567',
     organizer: '共青团宜宾市委',
     technicalSupport: '戎琛网络'
   },
@@ -100,13 +100,13 @@ window.CLIENT_H5_CONTENT = {
   ],
   privacyPolicy: {
     id: 'privacy',
-    title: '隐私说明',
-    summary: '手机号仅用于测试链路中的身份绑定、红包状态展示和消费券核销校验。',
+    title: '隐私与授权说明',
+    summary: '手机号仅用于发放微信红包、核销消费券和必要的活动联系，不会脱离本次三江青年活动单独使用。',
     tags: ['隐私', '授权'],
     sections: [
       { title: '我们会收集什么', content: '仅收集参与活动所需的手机号、登录态和权益使用信息。' },
-      { title: '为什么收集', content: '用于红包发放状态展示、消费券核销、防止重复领取和保障活动安全。' },
-      { title: '如何使用', content: '测试环境仅用于本次青春福袋活动链路验证，不会用于额外商业营销。' }
+      { title: '为什么收集', content: '用于红包发放、消费券核销、防止重复领取和保障活动安全。' },
+      { title: '如何使用', content: '仅限本次青春福袋活动使用，不会用于与你无关的商业营销或额外推广。' }
     ]
   },
   merchantCategories: [
@@ -119,36 +119,33 @@ window.CLIENT_H5_CONTENT = {
   merchantFallbacks: [
     {
       id: 'fallback-1',
-      name: '青年能量咖啡',
+      name: '三江青年能量咖啡',
       category: '餐饮',
-      address: '宜宾市叙州区青年路 18 号',
+      address: '宜宾市翠屏区三江口青年驿站旁',
       distanceText: '1.2km',
       contactName: '门店客服',
-      contactPhone: '08311234567',
       businessHours: '10:00 - 22:00',
-      description: '主打青年社交场景的复合咖啡空间，支持消费券和青年主题活动打卡。'
+      description: '主打青年社交场景的复合咖啡空间，临近三江口夜景步道，支持消费券和青年主题打卡。'
     },
     {
       id: 'fallback-2',
-      name: '青春文旅站',
+      name: '竹海青春文旅站',
       category: '文旅',
-      address: '宜宾市翠屏区滨江广场 2 层',
+      address: '宜宾市长宁县竹海路文旅服务点',
       distanceText: '2.6km',
       contactName: '服务台',
-      contactPhone: '08317654321',
       businessHours: '09:30 - 21:00',
-      description: '聚合本地旅游、文化展览和青年打卡路线的文旅服务站。'
+      description: '聚合蜀南竹海、三江沿线和青年文化展览路线的文旅服务站。'
     },
     {
       id: 'fallback-3',
-      name: '青年优选集合店',
+      name: '哪吒潮玩青年集合店',
       category: '零售',
-      address: '宜宾市临港经开区创新大道 66 号',
+      address: '宜宾市南溪区哪吒文化街区',
       distanceText: '4.0km',
       contactName: '导购台',
-      contactPhone: '08319876543',
       businessHours: '10:00 - 21:30',
-      description: '集合文创、日用品和青年周边的零售空间，适合消费券核销。'
+      description: '集合哪吒文化文创、城市伴手礼与青年周边的零售空间，适合消费券核销。'
     }
   ]
 };

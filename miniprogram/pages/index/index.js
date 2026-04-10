@@ -53,6 +53,7 @@ Page({
   data: {
     activityRules,
     serviceInfo,
+    booting: true,
     isActive: false,
     hasReceived: false,
     hasDrawnLottery: false,
@@ -73,6 +74,9 @@ Page({
   onLoad() {
     this._hadReceived = false;
     this._lastPosterPopupKey = '';
+    this.bootTimer = setTimeout(() => {
+      this.setData({ booting: false });
+    }, 900);
     this.triggerPageEntry();
     this.checkActivityStatus();
     this.syncHomeData();
@@ -91,6 +95,7 @@ Page({
 
   onUnload() {
     clearInterval(this.countdownTimer);
+    clearTimeout(this.bootTimer);
     clearTimeout(this.gridTimer);
     clearTimeout(this.drawTimer);
     clearTimeout(this.pageEntryTimer);

@@ -1,5 +1,5 @@
 {
-  "appid": "touristappid",
+  "appid": "wx466b9b6d729cef7e",
   "projectname": "youth-fastval-miniprogram",
   "compileType": "miniprogram",
   "libVersion": "3.15.1",
@@ -39,7 +39,8 @@
     "compileHotReLoad": true,
     "checkInvalidKey": true,
     "ignoreDevUnusedFiles": true,
-    "bigPackageSizeSupport": false
+    "bigPackageSizeSupport": false,
+    "condition": false
   },
   "simulatorPluginLibVersion": {},
   "packOptions": {

@@ -54,6 +54,5 @@
         <text class="rule-text">{{index + 1}}. {{item}}</text>
       </view>
     </view>
-    <button class="secondary-btn" bindtap="contactService">联系客服 {{serviceInfo.phone}}</button>
   </view>
 </view>

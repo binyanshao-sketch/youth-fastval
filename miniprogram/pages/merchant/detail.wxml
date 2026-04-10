@@ -22,6 +22,5 @@
 
   <view class="page-actions">
     <button class="primary-btn" bindtap="openMap">导航到这里</button>
-    <button class="secondary-btn" bindtap="callMerchant">联系商家</button>
   </view>
 </view>

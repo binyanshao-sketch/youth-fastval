@@ -13,8 +13,18 @@ router.get('/', adminAuth, async (req, res) => {
 
     const where = {}
     if (startDate && endDate) {
+      // 严格验证格式，防止非法日期字符串进入 Sequelize 查询
+      const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d+)?Z?)?$/
+      if (!ISO_DATE_RE.test(String(startDate)) || !ISO_DATE_RE.test(String(endDate))) {
+        return res.status(400).json({ success: false, message: '日期格式不正确' })
+      }
+      const start = new Date(startDate)
+      const end = new Date(endDate)
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+        return res.status(400).json({ success: false, message: '日期格式不正确' })
+      }
       where.received_at = {
-        [Op.between]: [new Date(startDate), new Date(endDate)]
+        [Op.between]: [start, end]
       }
     }
 

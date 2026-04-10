@@ -4,6 +4,33 @@
   gap: 22rpx;
 }
 
+.stagger-item {
+  opacity: 0;
+  transform: translateY(44rpx);
+  transition: transform 560ms cubic-bezier(0.2, 0.9, 0.24, 1.08), opacity 460ms ease;
+}
+
+.page-entered .stagger-item {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.page-entered .stage-1 {
+  transition-delay: 40ms;
+}
+
+.page-entered .stage-2 {
+  transition-delay: 110ms;
+}
+
+.page-entered .stage-3 {
+  transition-delay: 190ms;
+}
+
+.page-entered .stage-4 {
+  transition-delay: 270ms;
+}
+
 .lottery-hero {
   padding: 32rpx;
   background:
@@ -98,6 +125,8 @@
   top: 50%;
   width: 560rpx;
   height: 560rpx;
+  margin-left: -280rpx;
+  margin-top: -280rpx;
   transform-origin: center;
   border: 20rpx solid rgba(12, 95, 168, 0.18);
   box-shadow: 0 0 0 10rpx rgba(27, 161, 145, 0.1);
@@ -145,8 +174,8 @@
 .wheel-pointer-v3 {
   border-left: 20rpx solid transparent;
   border-right: 20rpx solid transparent;
-  border-top: 52rpx solid #efc05c;
-  filter: drop-shadow(0 10rpx 18rpx rgba(208, 157, 39, 0.28));
+  border-top: 52rpx solid #29c7b2;
+  filter: drop-shadow(0 10rpx 18rpx rgba(41, 199, 178, 0.40));
 }
 
 .wheel-center {
@@ -221,6 +250,7 @@
   color: #fff;
   font-size: 32rpx;
   font-weight: 800;
+  letter-spacing: 2rpx;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -264,4 +294,56 @@
     opacity: 0.12;
     box-shadow: 0 0 0 18rpx rgba(41, 199, 178, 0);
   }
+}
+
+/* 抽奖进行中：转盘外环脉冲 */
+@keyframes wheelDrawingGlow {
+  0%, 100% {
+    box-shadow: 0 0 0 10rpx rgba(27, 161, 145, 0.10);
+  }
+  50% {
+    box-shadow: 0 0 0 22rpx rgba(27, 161, 145, 0.22),
+      0 0 48rpx rgba(18, 134, 201, 0.18);
+  }
+}
+
+.wheel-panel.is-drawing .wheel-body {
+  animation: wheelDrawingGlow 1.1s ease-in-out infinite;
+}
+
+.grid-panel.is-drawing .grid-cell.active::after {
+  animation: gridHalo 0.55s ease-out infinite;
+}
+
+/* 结果卡片入场动画（动态插入 DOM，stagger 不触发） */
+@keyframes resultPop {
+  0% {
+    opacity: 0;
+    transform: translateY(36rpx) scale(0.94);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(-8rpx) scale(1.015);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.result-card.did-win {
+  animation: resultPop 540ms cubic-bezier(0.18, 0.9, 0.24, 1.08) both;
+}
+
+/* 无结果占位面板 */
+.empty-panel {
+  padding: 48rpx 32rpx;
+  background: rgba(255, 255, 255, 0.58);
+  border-radius: 28rpx;
+  text-align: center;
+  font-size: 26rpx;
+  color: #6f879a;
+  line-height: 1.9;
+  border: 1rpx solid rgba(18, 134, 201, 0.10);
+  box-shadow: 0 4rpx 18rpx rgba(13, 95, 168, 0.06);
 }

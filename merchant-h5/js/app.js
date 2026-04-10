@@ -50,7 +50,7 @@ createApp({
     // 发送验证码
     async sendCode() {
       if (!/^1[3-9]\d{9}$/.test(this.phone)) {
-        alert('请输入正确的手机号')
+        alert('请填写可接收短信的门店手机号')
         return
       }
 
@@ -63,23 +63,24 @@ createApp({
         const data = await res.json()
         
         if (data.success) {
+          alert('登录验证码已发送，请留意短信通知')
           this.countdown = 60
           const timer = setInterval(() => {
             this.countdown--
             if (this.countdown <= 0) clearInterval(timer)
           }, 1000)
         } else {
-          alert(data.message || '发送失败')
+          alert(data.message || '验证码发送失败，请稍后再试')
         }
       } catch (error) {
-        alert('发送失败')
+        alert('验证码发送失败，请检查网络后重试')
       }
     },
 
     // 登录
     async login() {
       if (!this.phone || !this.code) {
-        alert('请输入手机号和验证码')
+        alert('请填写门店手机号和短信验证码')
         return
       }
 
@@ -99,10 +100,10 @@ createApp({
           this.isLoggedIn = true
           this.loadData()
         } else {
-          alert(data.message || '登录失败')
+          alert(data.message || '进入商家工作台失败，请稍后再试')
         }
       } catch (error) {
-        alert('登录失败')
+        alert('进入商家工作台失败，请检查网络后重试')
       } finally {
         this.loading = false
       }
@@ -175,7 +176,7 @@ createApp({
     // 核销
     async verifyCode() {
       if (!this.inputCode) {
-        alert('请输入券码')
+        alert('请先输入需要核销的消费券码')
         return
       }
 
@@ -206,7 +207,7 @@ createApp({
 
         this.inputCode = ''
       } catch (error) {
-        alert('核销失败')
+        alert('核销失败，请稍后重新核对券码')
       }
     },
 

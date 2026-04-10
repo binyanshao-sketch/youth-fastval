@@ -37,5 +37,7 @@ export default {
   getSettings: () => request.get('/settings'),
   updateSettings: (data) => request.put('/settings', data),
 
-  getLogs: (params) => request.get('/logs', { params })
+  getLogs: (params) => request.get('/logs', { params }),
+
+  getUploadToken: (prefix) => request.get('/upload/token', { params: { prefix } })
 }

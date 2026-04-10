@@ -16,20 +16,6 @@ Page({
     });
   },
 
-  callMerchant() {
-    if (!this.data.merchant?.contactPhone) {
-      wx.showToast({
-        title: '暂无联系电话',
-        icon: 'none'
-      });
-      return;
-    }
-
-    wx.makePhoneCall({
-      phoneNumber: this.data.merchant.contactPhone
-    });
-  },
-
   openMap() {
     const { merchant } = this.data;
     if (!merchant?.latitude || !merchant?.longitude) {

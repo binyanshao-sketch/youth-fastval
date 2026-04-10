@@ -10,6 +10,9 @@ describe('LotteryService', () => {
         findOne: jest.fn().mockResolvedValue(null),
         create: jest.fn()
       },
+      SystemConfig: {
+        findOne: jest.fn().mockResolvedValue(null)
+      },
       ...overrides
     };
 

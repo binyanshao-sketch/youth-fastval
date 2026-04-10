@@ -9,6 +9,7 @@ const rateLimit = require('../middleware/rateLimit');
 const LuckyBagService = require('../services/LuckyBagService');
 const CouponService = require('../services/CouponService');
 const WeChatService = require('../services/WeChatService');
+const SMSService = require('../services/SMSService');
 const LotteryService = require('../services/LotteryService');
 const { requireGeofence } = require('../middleware/geofence');
 
@@ -282,6 +283,211 @@ router.post('/h5/bindPhone', [
   } catch (error) {
     logger.error('h5 bind phone failed', { error: error.message, userId: req.userId });
     res.status(500).json({ success: false, message: 'H5 绑定手机号失败' });
+  }
+});
+
+// ============================================================
+// 公开配置端点（供 H5 前端初始化时读取）
+// ============================================================
+router.get('/auth-config', (req, res) => {
+  res.json({
+    success: true,
+    data: {
+      mockMode: process.env.WX_USE_MOCK === 'true',
+      wxH5AppId: process.env.WX_H5_APPID || null
+    }
+  });
+});
+
+// ============================================================
+// 短信验证码登录
+// ============================================================
+
+// 发送短信验证码
+router.post('/sms/send', [
+  rateLimit({ windowMs: 60000, max: 5, message: '发送过于频繁，请稍后再试' }),
+  body('phone').matches(/^1[3-9]\d{9}$/).withMessage('手机号格式不正确')
+], async (req, res) => {
+  try {
+    const message = getValidationMessage(req);
+    if (message) {
+      return res.status(400).json({ success: false, message });
+    }
+
+    const phone = String(req.body.phone).trim();
+
+    // 每个手机号 60 秒内只能发一次
+    const cooldownKey = `sms:cd:${phone}`;
+    const hasCooldown = await req.redis.get(cooldownKey);
+    if (hasCooldown) {
+      const ttl = await req.redis.ttl(cooldownKey);
+      return res.status(429).json({ success: false, message: `请 ${ttl} 秒后再次发送` });
+    }
+
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    await req.redis.set(`sms:code:${phone}`, code, 'EX', 300);
+    await req.redis.set(cooldownKey, '1', 'EX', 60);
+
+    const result = await SMSService.send(phone, `您的验证码是${code}，五分钟内有效`);
+    if (!result.success) {
+      await req.redis.del(`sms:code:${phone}`);
+      return res.status(500).json({ success: false, message: result.message || '短信发送失败' });
+    }
+
+    res.json({ success: true, message: '验证码已发送' });
+  } catch (error) {
+    logger.error('sms send failed', { error: error.message });
+    res.status(500).json({ success: false, message: '发送失败，请稍后重试' });
+  }
+});
+
+// 短信验证码登录（自动注册）
+router.post('/sms/login', [
+  rateLimit({ windowMs: 60000, max: 10, message: '登录请求过于频繁' }),
+  body('phone').matches(/^1[3-9]\d{9}$/).withMessage('手机号格式不正确'),
+  body('code').matches(/^\d{6}$/).withMessage('验证码格式不正确')
+], async (req, res) => {
+  try {
+    const message = getValidationMessage(req);
+    if (message) {
+      return res.status(400).json({ success: false, message });
+    }
+
+    const phone = String(req.body.phone).trim();
+    const code = String(req.body.code).trim();
+
+    // 防止暴力破解
+    const attemptKey = `sms:atm:${phone}`;
+    const attempts = Number(await req.redis.get(attemptKey) || 0);
+    if (attempts >= 5) {
+      return res.status(429).json({ success: false, message: '验证码错误次数过多，请重新获取' });
+    }
+
+    const storedCode = await req.redis.get(`sms:code:${phone}`);
+    if (!storedCode || storedCode !== code) {
+      const newAttempts = await req.redis.incr(attemptKey);
+      if (newAttempts === 1) await req.redis.expire(attemptKey, 300);
+      return res.status(400).json({ success: false, message: '验证码不正确或已过期' });
+    }
+
+    // 清除验证码和计数器
+    await req.redis.del(`sms:code:${phone}`, attemptKey);
+
+    // 查找或创建用户（优先按手机号匹配已有账号）
+    // 使用 findOrCreate 避免并发请求同时注册同一手机号时产生的竞态条件
+    let user;
+    try {
+      const [foundUser] = await req.models.User.findOrCreate({
+        where: { phone },
+        defaults: { openid: `sms_${phone}`, status: 1 }
+      });
+      user = foundUser;
+    } catch (createError) {
+      // 兜底：极端并发下 findOrCreate 仍可能抛唯一约束，再查一次
+      const { UniqueConstraintError } = require('sequelize');
+      if (createError instanceof UniqueConstraintError) {
+        user = await req.models.User.findOne({ where: { phone } });
+        if (!user) {
+          throw createError;
+        }
+      } else {
+        throw createError;
+      }
+    }
+
+    const token = req.app.locals.jwt.sign({
+      userId: user.id,
+      role: 'user',
+      type: 'user'
+    });
+
+    res.json({ success: true, data: { token } });
+  } catch (error) {
+    logger.error('sms login failed', { error: error.message });
+    res.status(500).json({ success: false, message: '登录失败，请稍后重试' });
+  }
+});
+
+// 短信验证码绑定手机号（需要已登录）
+router.post('/sms/bind-phone', [
+  ...userAuth,
+  rateLimit({ windowMs: 60000, max: 5 }),
+  body('phone').matches(/^1[3-9]\d{9}$/).withMessage('手机号格式不正确'),
+  body('code').matches(/^\d{6}$/).withMessage('验证码格式不正确')
+], async (req, res) => {
+  try {
+    const message = getValidationMessage(req);
+    if (message) {
+      return res.status(400).json({ success: false, message });
+    }
+
+    const phone = String(req.body.phone).trim();
+    const code = String(req.body.code).trim();
+
+    const attemptKey = `sms:atm:${phone}`;
+    const attempts = Number(await req.redis.get(attemptKey) || 0);
+    if (attempts >= 5) {
+      return res.status(429).json({ success: false, message: '验证码错误次数过多，请重新获取' });
+    }
+
+    const storedCode = await req.redis.get(`sms:code:${phone}`);
+    if (!storedCode || storedCode !== code) {
+      const newAttempts = await req.redis.incr(attemptKey);
+      if (newAttempts === 1) await req.redis.expire(attemptKey, 300);
+      return res.status(400).json({ success: false, message: '验证码不正确或已过期' });
+    }
+
+    await req.redis.del(`sms:code:${phone}`, attemptKey);
+
+    const existing = await req.models.User.findOne({ where: { phone } });
+    if (existing && Number(existing.id) !== Number(req.userId)) {
+      return res.status(400).json({ success: false, message: '该手机号已被其他账号使用' });
+    }
+
+    await req.models.User.update({ phone }, { where: { id: req.userId } });
+
+    res.json({ success: true, data: { phone }, message: '绑定成功' });
+  } catch (error) {
+    logger.error('sms bind phone failed', { error: error.message, userId: req.userId });
+    res.status(500).json({ success: false, message: '绑定失败，请稍后重试' });
+  }
+});
+
+// ============================================================
+// 微信公众号 H5 OAuth 登录
+// ============================================================
+router.post('/wx/h5/login', [
+  rateLimit({ windowMs: 60000, max: 10 }),
+  body('code').notEmpty().withMessage('缺少微信授权码')
+], async (req, res) => {
+  try {
+    const message = getValidationMessage(req);
+    if (message) {
+      return res.status(400).json({ success: false, message });
+    }
+
+    const weChatService = new WeChatService(req.redis);
+    const wxResult = await weChatService.h5OAuth(req.body.code);
+
+    let user = await req.models.User.findOne({ where: { openid: wxResult.openid } });
+    if (!user) {
+      user = await req.models.User.create({
+        openid: wxResult.openid,
+        unionid: wxResult.unionid,
+        status: 1
+      });
+    }
+
+    const token = req.app.locals.jwt.sign({
+      userId: user.id,
+      role: 'user',
+      type: 'user'
+    });
+
+    res.json({ success: true, data: { token, isNewUser: !user.phone } });
+  } catch (error) {
+    logger.error('wx h5 login failed', { error: error.message });
+    res.status(500).json({ success: false, message: '微信登录失败，请稍后重试' });
   }
 });
 

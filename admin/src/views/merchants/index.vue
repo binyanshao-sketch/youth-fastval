@@ -57,17 +57,49 @@
       </div>
     </div>
 
-    <el-dialog v-model="show" title="新增商家" width="500px">
+    <el-dialog v-model="show" title="新增商家" width="520px">
       <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
         <el-form-item label="名称" prop="name"><el-input v-model="form.name" /></el-form-item>
         <el-form-item label="分类" prop="category"><el-input v-model="form.category" /></el-form-item>
         <el-form-item label="电话" prop="phone"><el-input v-model="form.phone" /></el-form-item>
         <el-form-item label="联系人" prop="contactName"><el-input v-model="form.contactName" /></el-form-item>
         <el-form-item label="地址" prop="address"><el-input v-model="form.address" /></el-form-item>
+        <el-form-item label="营业执照">
+          <div class="license-upload">
+            <el-image
+              v-if="form.licenseImage"
+              :src="form.licenseImage"
+              fit="contain"
+              style="width:120px;height:80px;border-radius:4px;border:1px solid #e4e7ed;"
+            />
+            <el-upload
+              :show-file-list="false"
+              accept="image/jpeg,image/png,image/webp"
+              :before-upload="handleBeforeUpload"
+              :http-request="handleUpload"
+            >
+              <el-button :loading="uploading" size="small" style="margin-left:8px;">
+                {{ form.licenseImage ? '重新上传' : '上传图片' }}
+              </el-button>
+            </el-upload>
+            <el-button
+              v-if="form.licenseImage"
+              size="small"
+              type="danger"
+              link
+              style="margin-left:6px;"
+              @click="form.licenseImage = ''"
+            >删除</el-button>
+          </div>
+          <div class="el-form-item__error" v-if="!uploadEnabled" style="position:static;">
+            上传服务未配置，可手动填写图片 URL：
+            <el-input v-model="form.licenseImage" placeholder="https://..." size="small" style="margin-top:4px;" />
+          </div>
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="show = false">取消</el-button>
-        <el-button type="primary" @click="create">保存</el-button>
+        <el-button type="primary" :loading="submitting" @click="create">保存</el-button>
       </template>
     </el-dialog>
   </div>
@@ -77,14 +109,18 @@
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import api from '@/api'
+import { uploadToQiniu } from '@/utils/qiniuUpload'
 
 const loading = ref(false)
 const show = ref(false)
+const uploading = ref(false)
+const submitting = ref(false)
+const uploadEnabled = ref(true)
 const formRef = ref(null)
 const list = ref([])
 const filters = reactive({ name: '', status: '' })
 const pagination = reactive({ page: 1, pageSize: 20, total: 0 })
-const form = reactive({ name: '', category: '餐饮', phone: '', contactName: '', address: '' })
+const form = reactive({ name: '', category: '餐饮', phone: '', contactName: '', address: '', licenseImage: '' })
 
 const rules = {
   name: [{ required: true, message: '请输入商家名称', trigger: 'blur' }],
@@ -95,6 +131,36 @@ const rules = {
   ],
   contactName: [{ required: true, message: '请输入联系人', trigger: 'blur' }],
   address: [{ required: true, message: '请输入地址', trigger: 'blur' }]
+}
+
+// 检测上传服务是否可用
+async function checkUploadEnabled() {
+  try {
+    await api.getUploadToken('merchant/license/')
+  } catch (_e) {
+    uploadEnabled.value = false
+  }
+}
+
+function handleBeforeUpload(file) {
+  if (file.size > 5 * 1024 * 1024) {
+    ElMessage.error('图片大小不能超过 5MB')
+    return false
+  }
+  return true
+}
+
+async function handleUpload({ file }) {
+  uploading.value = true
+  try {
+    const url = await uploadToQiniu(file, 'merchant/license/')
+    form.licenseImage = url
+    ElMessage.success('上传成功')
+  } catch (error) {
+    ElMessage.error(error.message || '上传失败')
+  } finally {
+    uploading.value = false
+  }
 }
 
 async function loadData(page = pagination.page) {
@@ -131,16 +197,26 @@ async function create() {
   const valid = await formRef.value.validate().catch(() => false)
   if (!valid) return
 
-  const res = await api.createMerchant(form)
-  if (res.success) {
-    ElMessage.success('商家创建成功')
-    show.value = false
-    form.name = ''
-    form.category = '餐饮'
-    form.phone = ''
-    form.contactName = ''
-    form.address = ''
-    loadData()
+  submitting.value = true
+  try {
+    const payload = {
+      name: form.name,
+      category: form.category,
+      phone: form.phone,
+      contactName: form.contactName,
+      address: form.address
+    }
+    if (form.licenseImage) payload.licenseImage = form.licenseImage
+
+    const res = await api.createMerchant(payload)
+    if (res.success) {
+      ElMessage.success('商家创建成功')
+      show.value = false
+      Object.assign(form, { name: '', category: '餐饮', phone: '', contactName: '', address: '', licenseImage: '' })
+      loadData()
+    }
+  } finally {
+    submitting.value = false
   }
 }
 
@@ -148,6 +224,24 @@ async function verifyMerchant(id) {
   const res = await api.verifyMerchant(id)
   if (res.success) {
     ElMessage.success('商家审核通过')
+    loadData()
+  }
+}
+
+onMounted(() => {
+  loadData()
+  checkUploadEnabled()
+})
+</script>
+
+<style scoped>
+.license-upload {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+</style>
     loadData()
   }
 }

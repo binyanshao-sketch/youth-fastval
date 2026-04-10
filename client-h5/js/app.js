@@ -4,7 +4,7 @@
   const bagOptions = Array.from({ length: 9 }).map((_, index) => ({
     id: index,
     label: `福袋 ${index + 1}`,
-    tag: index < 3 ? '热力开袋' : index < 6 ? '青年好运' : '隐藏惊喜'
+    tag: index < 3 ? '三江潮色' : index < 6 ? '竹海好运' : '隐藏惊喜'
   }));
   const gridMapping = [0, 1, 2, 7, null, 3, 6, 5, 4];
   const storageKeys = {
@@ -206,7 +206,7 @@
     state.session.userInfo = null;
     state.receive.showPhoneSheet = false;
     state.homePoster.visible = false;
-    state.unsupportedMessage = message || '当前环境不开放 H5 参与，请使用微信小程序进入活动。';
+    state.unsupportedMessage = message || '当前环境暂不开放三江青年 H5 正式参与，请从微信小程序进入活动。';
     localStorage.removeItem(storageKeys.mode);
   }
 
@@ -237,7 +237,7 @@
 
     const result = await response.json().catch(() => ({
       success: false,
-      message: '服务返回了不可解析的数据'
+      message: '服务返回了暂时无法识别的数据'
     }));
 
     if (response.status === 401 && auth && retry) {
@@ -247,7 +247,7 @@
     }
 
     if (!response.ok || !result.success) {
-      throw new Error(result.message || '请求失败');
+      throw new Error(result.message || '服务连接失败，请稍后再试');
     }
 
     return result.data;
@@ -278,7 +278,7 @@
         });
       } catch (error) {
         if (String(error.message || '').includes('H5')) {
-          setUnsupportedClient('当前环境不开放 H5 参与，请使用微信小程序进入活动。');
+          setUnsupportedClient('当前环境暂不开放三江青年 H5 正式参与，请从微信小程序进入活动。');
         }
         throw error;
       }
@@ -423,9 +423,9 @@
 
     return {
       headline: '分享海报已就绪',
-      title: result?.prize?.posterTitle || '把这份青春好运分享出去',
+      title: result?.prize?.posterTitle || '把这份三江青年好运分享出去',
       amount: state.luckyBag?.redPacket?.amount || basePoster.amount || '0.00',
-      blessing: result?.prize?.posterMessage || '邀请朋友一起打开青春福袋，随机拆出红包和抽奖惊喜。',
+      blessing: result?.prize?.posterMessage || '邀请朋友一起打开青春福袋，在宜宾江景与竹影之间收下红包和抽奖惊喜。',
       footer: '分享当前页面，让朋友也来领取福袋并进入首页抽奖区。'
     };
   }
@@ -764,18 +764,18 @@
 
   function getRouteMeta() {
     const mapping = {
-      home: { title: '青春福袋', subtitle: '九选一拆袋 · 祝福海报 · 所见即所得抽奖' },
-      receive: { title: '福袋开启', subtitle: '任选 1 个红包，进入第一屏幕流程' },
-      result: { title: '祝福海报', subtitle: '红包金额、发放状态和权益同步到账' },
-      lottery: { title: '抽奖页面', subtitle: '大转盘和九宫格，奖池直接可见' },
-      coupons: { title: '权益卡包', subtitle: '消费券、福利卡和核销入口' },
-      'coupon-detail': { title: '消费券详情', subtitle: '出示二维码或核销码即可使用' },
-      merchants: { title: '青年商家', subtitle: '附近可核销的商家和青年活动场景' },
-      'merchant-detail': { title: '商家详情', subtitle: '营业时间、地址和联系信息' },
-      policies: { title: '政策福利', subtitle: '就业、安居、培训和补贴一页通览' },
-      'policy-detail': { title: '政策详情', subtitle: '查看条目、适用人群和办理路径' },
-      redpackets: { title: '红包记录', subtitle: '查看红包发放进度和历史领取记录' },
-      profile: { title: '我的', subtitle: '权益、抽奖状态和服务说明' }
+      home: { title: '青春福袋', subtitle: '三江青年路线 · 开袋海报 · 首页抽奖一屏完成' },
+      receive: { title: '福袋开启', subtitle: '九选一开袋，沿着三江水色进入开袋路线' },
+      result: { title: '荣誉卡片', subtitle: '红包金额、到账状态和青年权益同步展示' },
+      lottery: { title: '抽奖页面', subtitle: '当前启用奖池直接可见，延续和小程序同一套节奏' },
+      coupons: { title: '权益卡包', subtitle: '消费券、福利卡和到店核销入口' },
+      'coupon-detail': { title: '消费券详情', subtitle: '到店出示二维码或核销码即可使用' },
+      merchants: { title: '青年生活指南', subtitle: '沿着三江青年路线寻找可核销商家' },
+      'merchant-detail': { title: '商家详情', subtitle: '查看营业时间、地址和联系信息' },
+      policies: { title: '政策福利', subtitle: '就业、安居、培训和补贴支持一页通览' },
+      'policy-detail': { title: '政策详情', subtitle: '查看条目重点、适用人群和办理路径' },
+      redpackets: { title: '红包记录', subtitle: '查看红包到账进度和历次领取记录' },
+      profile: { title: '我的', subtitle: '查看权益进度、抽奖状态与服务入口' }
     };
 
     return mapping[state.route.name] || mapping.home;
@@ -783,7 +783,7 @@
 
   async function switchIdentity() {
     if (state.session.mode !== 'mock') {
-      setToast('当前环境不支持切换测试身份');
+      setToast('当前环境不支持生成预览身份');
       return;
     }
 
@@ -811,9 +811,9 @@
     try {
       await ensureSession(true);
       await prepareRoute();
-      setToast('已创建新的测试身份');
+      setToast('已生成新的预览身份');
     } catch (error) {
-      setToast(error.message || '切换测试身份失败');
+      setToast(error.message || '生成预览身份失败');
     }
   }
 
@@ -822,7 +822,7 @@
     await loadHomeData();
 
     if (!state.activity.isActive) {
-      setToast('活动尚未开始');
+      setToast('青春福袋暂未开启');
       return;
     }
 
@@ -857,7 +857,7 @@
       try {
         location = await getUserLocation();
       } catch (locErr) {
-        setToast(locErr.message || '获取位置失败');
+        setToast(locErr.message || '请先允许定位后继续开袋');
         return;
       }
 
@@ -875,7 +875,7 @@
       await loadHomeData();
       navigate('/result');
     } catch (error) {
-      setToast(error.message || '开启福袋失败');
+      setToast(error.message || '开袋失败，请稍后再试');
     } finally {
       state.receive.submitting = false;
       queueRender();
@@ -884,7 +884,7 @@
 
   async function onOpenBag() {
     if (state.receive.selectedSlot === null || state.receive.selectedSlot === undefined) {
-      setToast('先从九个红包里选一个');
+      setToast('先选中一个青春福袋再继续');
       return;
     }
 
@@ -905,7 +905,7 @@
 
   async function bindPhoneAndContinue() {
     if (!/^1[3-9]\d{9}$/.test(state.receive.phone.trim())) {
-      setToast('请输入正确的手机号');
+      setToast('请输入可接收通知的手机号');
       return;
     }
 
@@ -922,7 +922,7 @@
       queueRender();
       await submitReceive();
     } catch (error) {
-      setToast(error.message || '绑定手机号失败');
+      setToast(error.message || '绑定领奖手机号失败');
     }
   }
 
@@ -955,7 +955,7 @@
     } catch (error) {
       state.lottery.drawing = false;
       queueRender();
-      setToast(error.message || '抽奖失败');
+      setToast(error.message || '抽奖暂未完成，请稍后再试');
     }
   }
 
@@ -1070,7 +1070,7 @@
 
   function renderTopbar() {
     const meta = getRouteMeta();
-    const isMockMode = state.session.mode === 'mock';
+    const isMockMode = state.session.mode === 'mock' && /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname);
     return `
       <header class="topbar">
         <div class="topbar-brand">
@@ -1079,8 +1079,8 @@
         </div>
         <div class="topbar-actions">
           ${isMockMode ? `
-            <span class="test-badge">${escapeHtml('测试模式')}</span>
-            <button class="link-btn" data-action="switch-identity">换号测试</button>
+            <span class="test-badge">${escapeHtml('预览模式')}</span>
+            <button class="link-btn" data-action="switch-identity">生成新身份</button>
           ` : ''}
         </div>
       </header>
@@ -1091,19 +1091,19 @@
     return `
       <section class="page-shell">
         <div class="hero-card">
-          <span class="hero-kicker">H5 预览</span>
-          <div class="hero-title">请在微信小程序参与活动</div>
-          <p class="hero-desc">${escapeHtml(state.unsupportedMessage || '当前环境不开放 H5 参与，请使用微信小程序进入活动。')}</p>
+          <span class="hero-kicker">正式活动入口</span>
+          <div class="hero-title">请从微信小程序进入三江青年福袋</div>
+          <p class="hero-desc">${escapeHtml(state.unsupportedMessage || '当前环境暂不开放三江青年 H5 正式参与，请从微信小程序进入活动。')}</p>
         </div>
 
         <div class="glass-card info-card">
           <div class="info-row">
             <div class="info-label">当前入口</div>
-            <div class="info-value">浏览器 H5 仅用于本地预览和联调。</div>
+            <div class="info-value">浏览器 H5 当前仅用于预览联调，不参与正式红包发放与活动资格校验。</div>
           </div>
           <div class="info-row">
             <div class="info-label">建议操作</div>
-            <div class="info-value">请使用微信小程序打开正式活动入口，领取福袋并参与抽奖。</div>
+            <div class="info-value">请使用微信小程序打开正式活动入口，领取福袋、查看荣誉海报并参与抽奖。</div>
           </div>
         </div>
       </section>
@@ -1115,7 +1115,7 @@
       <div class="glass-card countdown-card">
         <div class="section-head">
           <div class="section-title">开袋倒计时</div>
-          <div class="section-subtitle">活动开始后即可进入九选一屏幕</div>
+          <div class="section-subtitle">活动开启后即可进入九选一开袋路线</div>
         </div>
         <div class="countdown-grid">
           <div class="count-item">
@@ -1143,8 +1143,8 @@
     return `
       <div class="glass-card mode-switch">
         <div class="switch-track">
-          <button class="switch-item ${state.lottery.mode === 'wheel' ? 'active' : ''}" data-action="switch-lottery-mode" data-mode="wheel">大转盘</button>
-          <button class="switch-item ${state.lottery.mode === 'grid' ? 'active' : ''}" data-action="switch-lottery-mode" data-mode="grid">九宫格</button>
+          <button class="switch-item ${state.lottery.mode === 'wheel' ? 'active' : ''}" data-action="switch-lottery-mode" data-mode="wheel">三江转盘</button>
+          <button class="switch-item ${state.lottery.mode === 'grid' ? 'active' : ''}" data-action="switch-lottery-mode" data-mode="grid">青春九宫格</button>
         </div>
       </div>
     `;
@@ -1199,7 +1199,7 @@
 
   function renderLotteryResultCard(options = {}) {
     const result = state.lottery.result;
-    const emptyText = options.emptyText || '选择你喜欢的玩法后开始抽奖，页面所示奖池就是你当前参与的奖池。';
+    const emptyText = options.emptyText || '选择当前启用玩法后开始抽奖，页面所示奖池就是你正在参与的奖池。';
 
     if (!result) {
       return `<div class="empty-panel">${emptyText}</div>`;
@@ -1226,62 +1226,67 @@
     const myRedpacket = state.luckyBag?.redPacket || null;
     const myCoupons = (state.luckyBag?.coupons || []).map(normalizeCoupon);
     const primaryText = hasReceived
-      ? (state.userStats.hasDrawnLottery ? '查看我的抽奖结果' : '继续查看祝福海报')
+      ? (state.userStats.hasDrawnLottery ? '查看我的青春战绩' : '继续查看荣誉海报')
       : '领取青春福袋';
 
     return `
       <section class="page-shell">
         <div class="hero-card">
+          <div class="hero-orbit orbit-a"></div>
+          <div class="hero-orbit orbit-b"></div>
           <span class="hero-kicker">${escapeHtml(state.activity.statusText)}</span>
-          <div class="hero-title">打开青春福袋<span class="accent">先选一个红包</span></div>
-          <p class="hero-desc">点击领取后进入九选一红包墙，任意打开一个红包，随机获得金额，生成祝福海报，再继续进入抽奖页面。</p>
+          <div class="hero-title">青春福袋<span class="accent">红包、海报、抽奖一屏衔接</span></div>
+          <p class="hero-desc">以宜宾三江交汇和竹海风景为灵感，领取福袋后海报随机弹出，页面自动滑到抽奖区。整条链路在首页一步完成，更青春、更流畅。</p>
           <div class="hero-actions">
             <button class="primary-btn" data-action="receive-entry" ${!state.activity.isActive ? 'disabled' : ''}>${escapeHtml(primaryText)}</button>
-            <button class="secondary-btn" data-route="/merchants">查看青年商家</button>
+            <button class="secondary-btn" data-route="/merchants">查看三江生活指南</button>
           </div>
           ${state.activity.countdown ? renderCountdown() : ''}
         </div>
 
         <div class="glass-card flow-card">
           <div class="section-head">
-            <div class="section-title">三步完成体验</div>
-            <div class="section-subtitle">第一屏、祝福海报、抽奖页一条链路直达</div>
+            <div class="section-title">三江青年体验路线</div>
+            <div class="section-subtitle">开袋、荣誉海报与抽奖已经串成一条完整路线</div>
           </div>
           <div class="flow-list">
             <div class="flow-item">
               <div class="flow-index">01</div>
               <div class="flow-body">
-                <div class="flow-title">九个红包任选其一</div>
-                <p class="flow-text">进入第一屏幕后直接看到九个红包，先选中，再开启。</p>
+                <div class="flow-title">九选一领取红包</div>
+                <p class="flow-text">先在福袋页选中一个红包，再完成拆袋领取，开袋结果会自动回流到首页。</p>
               </div>
             </div>
             <div class="flow-item">
               <div class="flow-index">02</div>
               <div class="flow-body">
-                <div class="flow-title">随机金额 + 祝福海报</div>
-                <p class="flow-text">金额随机命中，页面同步生成祝福海报，展示红包当前发放状态。</p>
+                <div class="flow-title">随机弹出荣誉海报</div>
+                <p class="flow-text">领取完成后，系统会随机展示红包海报或分享海报，把宜宾江景与竹影气质带进结果页仪式感。</p>
               </div>
             </div>
             <div class="flow-item">
               <div class="flow-index">03</div>
               <div class="flow-body">
-                <div class="flow-title">继续进入抽奖页面</div>
-                <p class="flow-text">抽奖页可切换大转盘和九宫格，页面展示的就是当前实际奖池。</p>
+                <div class="flow-title">停留首页继续抽奖</div>
+                <p class="flow-text">大转盘和九宫格已经并入首页，页面会自动滑到抽奖区，无需再寻找单独入口。</p>
               </div>
             </div>
           </div>
         </div>
 
         <div class="glass-card home-lottery-shell">
-          <div class="section-head">
-            <div class="section-title">首页抽奖区</div>
-            <div class="section-subtitle">${hasReceived ? '抽奖页已并入首页，可直接切换玩法并开始抽奖。' : '领取青春福袋后，这里会直接解锁抽奖页。'}</div>
+          <div class="section-head section-head-stack">
+            <div>
+              <div class="section-title">首页抽奖区</div>
+              <div class="section-subtitle section-subtitle-block">${hasReceived ? '客户端当前仅展示后台启用的奖池，保持和小程序同一套玩法入口。' : '领取青春福袋后，这里会自动亮起当前启用的抽奖玩法。'}</div>
+            </div>
+            <span class="status-chip ${state.userStats.hasDrawnLottery ? 'active' : 'pending'}">${state.userStats.hasDrawnLottery ? '已抽奖' : '待解锁'}</span>
           </div>
           ${hasReceived ? `
             <div class="poster-quick-actions">
-              <button class="secondary-btn mini-btn" data-action="open-home-poster" data-type="random">随机弹出海报</button>
-              <button class="secondary-btn mini-btn" data-action="open-home-poster" data-type="share">分享海报</button>
-              <button class="secondary-btn mini-btn" data-route="/result">查看红包海报</button>
+              <button class="secondary-btn mini-btn" data-action="open-home-poster" data-type="random">随机弹出荣誉海报</button>
+              <button class="secondary-btn mini-btn" data-action="open-home-poster" data-type="share">打开分享海报</button>
+              <button class="secondary-btn mini-btn" data-route="/result">查看红包荣誉卡</button>
             </div>
           ` : ''}
         </div>
@@ -1290,21 +1295,21 @@
           ${renderLotteryControls()}
           ${renderLotteryBoard()}
           ${renderLotteryResultCard({
-            emptyText: '福袋已到账，直接在首页选择玩法开始抽奖。',
+            emptyText: '福袋权益已到账，直接在首页选择当前玩法开始抽奖。',
             actions: `
               <button class="secondary-btn" data-action="open-home-poster" data-type="random">再弹一张随机海报</button>
-              <button class="secondary-btn" data-route="/result">返回查看祝福海报</button>
+              <button class="secondary-btn" data-route="/result">返回查看荣誉海报</button>
             `
           })}
         ` : `
-          <div class="empty-panel">先领取青春福袋，首页会同步解锁抽奖区、红包海报和分享海报弹窗。</div>
+          <div class="empty-panel">先领取青春福袋，首页才会亮起抽奖区、红包海报和分享海报弹窗。</div>
         `}
 
         ${hasReceived ? `
           <div class="glass-card welfare-card">
             <div class="section-head">
               <div class="section-title">我的当前权益</div>
-              <div class="section-subtitle">已领内容可以直接进入明细页</div>
+              <div class="section-subtitle">红包、消费券和抽奖状态会在这里汇总</div>
             </div>
             <div class="list-stack">
               <button class="list-card metric-row" data-route="/redpackets">
@@ -1317,14 +1322,14 @@
               <button class="list-card metric-row" data-route="/coupons">
                 <div>
                   <span class="metric-main">${myCoupons.length}</span>
-                  <div class="metric-caption">张消费券已入账</div>
+                  <div class="metric-caption">张青年消费券已入账</div>
                 </div>
                 <span class="tiny-chip">查看权益</span>
               </button>
               <button class="list-card metric-row" data-route="/lottery">
                 <div>
                   <span class="metric-main">${state.userStats.hasDrawnLottery ? '已抽奖' : '首页可抽奖'}</span>
-                  <div class="metric-caption">抽奖区已放到首页</div>
+                  <div class="metric-caption">首页抽奖区已亮起</div>
                 </div>
                 <span class="tiny-chip">查看独立页</span>
               </button>
@@ -1348,12 +1353,12 @@
           <button class="quick-card" data-route="/policies">
             <span class="quick-icon">策</span>
             <div class="quick-title">政策清单</div>
-            <p class="quick-text">快速查看就业、安居和培训支持</p>
+            <p class="quick-text">继续查看就业、安居、培训与补贴支持</p>
           </button>
           <button class="quick-card" data-route="/profile">
             <span class="quick-icon">我</span>
             <div class="quick-title">个人中心</div>
-            <p class="quick-text">查看红包、消费券和抽奖状态</p>
+            <p class="quick-text">查看红包、消费券和当前抽奖状态</p>
           </button>
         </div>
       </section>
@@ -1365,8 +1370,8 @@
       <section class="page-shell">
         <div class="hero-card">
           <span class="hero-kicker">第一屏 · 九选一</span>
-          <div class="hero-title">先挑一个你最想拆开的红包</div>
-          <p class="hero-desc">九个红包全部可选，选定后随机命中金额，并立刻生成你的青春祝福海报。</p>
+          <div class="hero-title">挑一个最有眼缘的青春福袋</div>
+          <p class="hero-desc">九个红包全部可选，选定后随机命中金额，并立刻生成青春祝福海报。页面灵感来自宜宾三江水色与竹海清风。</p>
         </div>
 
         <div class="bag-grid">
@@ -1384,18 +1389,18 @@
         <div class="glass-card opening-card">
           <div class="section-head">
             <div class="section-title">开袋前确认</div>
-            <div class="section-subtitle">手机号用于红包状态展示和消费券核销校验</div>
+            <div class="section-subtitle">手机号仅用于红包到账提醒和消费券核销</div>
           </div>
           <div class="tag-row">
-            <span class="tag">${state.session.userInfo?.phone ? '手机号已绑定' : '首次开启需绑定手机号'}</span>
-            <span class="tag">${state.receive.selectedSlot !== null ? `已选择红包 ${state.receive.selectedSlot + 1}` : '请先选中一个红包'}</span>
+            <span class="tag">${state.session.userInfo?.phone ? '领奖手机号已绑定' : '首次开启需绑定领奖手机号'}</span>
+            <span class="tag">${state.receive.selectedSlot !== null ? `已选择福袋 ${state.receive.selectedSlot + 1}` : '请先选中一个福袋'}</span>
           </div>
           <div class="privacy-row">
             <button class="privacy-check ${state.receive.agreePrivacy ? 'checked' : ''}" data-action="toggle-privacy">${state.receive.agreePrivacy ? '✓' : ''}</button>
-            <div class="privacy-text">我已阅读并同意隐私说明</div>
-            <button class="privacy-link" data-route="/policy/privacy">查看内容</button>
+            <div class="privacy-text">我已阅读并同意活动隐私与授权说明</div>
+            <button class="privacy-link" data-route="/policy/privacy">查看说明</button>
           </div>
-          <button class="primary-btn" data-action="open-bag" ${state.receive.submitting ? 'disabled' : ''}>${state.receive.submitting ? '正在开启福袋...' : '立即拆开这个红包'}</button>
+          <button class="primary-btn" data-action="open-bag" ${state.receive.submitting ? 'disabled' : ''}>${state.receive.submitting ? '正在开启福袋...' : '立即开启这个福袋'}</button>
         </div>
       </section>
     `;
@@ -1403,7 +1408,7 @@
 
   function renderResultPage() {
     if (!state.luckyBag) {
-      return `<section class="page-shell"><div class="empty-panel">还没有福袋结果，请先返回首页领取青春福袋。</div></section>`;
+      return `<section class="page-shell"><div class="empty-panel">还没有开袋结果，请先返回首页领取青春福袋。</div></section>`;
     }
 
     const delivery = state.luckyBag.delivery || {};
@@ -1413,8 +1418,8 @@
     return `
       <section class="page-shell">
         <div class="poster-card ${state.showPosterGlow ? 'float-pulse' : ''}">
-          <div class="poster-headline">祝福海报已生成</div>
-          <div class="poster-title">${escapeHtml(poster.title || '青春福袋限定祝福')}</div>
+          <div class="poster-headline">三江青年荣誉海报</div>
+          <div class="poster-title">${escapeHtml(poster.title || '三江青年荣誉卡片')}</div>
           <div class="poster-amount-row">
             <span class="poster-currency">¥</span>
             <span class="poster-amount">${money(poster.amount)}</span>
@@ -1448,7 +1453,7 @@
         <div class="glass-card coupon-stage">
           <div class="section-head">
             <div class="section-title">同步入账权益</div>
-            <div class="section-subtitle">消费券和政策福利已一起发放</div>
+            <div class="section-subtitle">消费券与政策福利已同步入账</div>
           </div>
           ${coupons.length ? `
             <div class="list-stack">
@@ -1465,15 +1470,15 @@
                 </div>
               `).join('')}
             </div>
-          ` : '<div class="empty-panel">本次没有叠加消费券，可直接进入政策福利页查看更多内容。</div>'}
+          ` : '<div class="empty-panel">本次未叠加消费券，可继续查看青年政策与服务清单。</div>'}
         </div>
 
         <div class="page-actions">
-          <button class="primary-btn" data-route="/lottery">进入抽奖页面</button>
+          <button class="primary-btn" data-route="/lottery">继续进入抽奖区</button>
           <button class="secondary-btn" data-route="/coupons">查看消费券</button>
           <button class="secondary-btn" data-route="/redpackets">查看红包记录</button>
           <button class="secondary-btn" data-route="/policies">查看政策福利</button>
-          <button class="secondary-btn" data-route="/home">返回首页</button>
+          <button class="secondary-btn" data-route="/home">返回青春首页</button>
         </div>
       </section>
     `;
@@ -1483,14 +1488,14 @@
     return `
       <section class="page-shell">
         <div class="hero-card">
-          <span class="hero-kicker">抽奖页面</span>
-          <div class="hero-title">大转盘和九宫格都在这里</div>
-          <p class="hero-desc">页面显示的奖池就是你实际参与的奖池，玩法切换直接可见，不做隐藏层。</p>
+          <span class="hero-kicker">当前启用玩法</span>
+          <div class="hero-title">三江青年抽奖区</div>
+          <p class="hero-desc">奖池灵感来自宜宾三江潮色与竹海律动，页面只展示当前启用的玩法，保持与小程序一致。</p>
         </div>
         ${renderLotteryControls()}
         ${renderLotteryBoard()}
         ${renderLotteryResultCard({
-          actions: '<button class="secondary-btn" data-route="/result">返回查看祝福海报</button>'
+          actions: '<button class="secondary-btn" data-route="/result">返回查看荣誉海报</button>'
         })}
       </section>
     `;
@@ -1501,9 +1506,9 @@
     return `
       <section class="page-shell">
         <div class="hero-card">
-          <span class="hero-kicker">我的权益</span>
+          <span class="hero-kicker">我的青年权益</span>
           <div class="hero-title">消费券与福利卡包</div>
-          <p class="hero-desc">福袋到账的消费券会在这里统一展示，未使用、已使用和已过期状态一眼可见。</p>
+          <p class="hero-desc">福袋到账后的消费券和福利卡会在这里集中展示，未使用、已使用和已过期状态一眼可见。</p>
         </div>
 
         <div class="glass-card mode-switch">
@@ -1530,7 +1535,7 @@
               </button>
             `).join('')}
           </div>
-        ` : '<div class="empty-panel">当前分类下暂无消费券，领取福袋后再回来看看。</div>'}
+        ` : '<div class="empty-panel">当前分类下暂无权益，领取福袋后再回来看看。</div>'}
       </section>
     `;
   }
@@ -1545,7 +1550,7 @@
     });
 
     if (!detail?.coupon) {
-      return `<section class="page-shell"><div class="empty-panel">消费券详情加载失败，请返回权益页重试。</div></section>`;
+      return `<section class="page-shell"><div class="empty-panel">权益详情加载失败，请返回卡包页重试。</div></section>`;
     }
 
     return `
@@ -1564,7 +1569,7 @@
             <div class="code-panel">
               <img class="qrcode-image" src="${escapeHtml(detail.qrcodeUrl)}" alt="核销二维码">
               <span class="verify-code">${escapeHtml(detail.code)}</span>
-              <div class="verify-tip">到店后向商家出示二维码或核销码即可使用。</div>
+              <div class="verify-tip">到店后向青年友好商家出示二维码或核销码即可使用。</div>
               <div class="page-actions" style="margin-top: 14px;">
                 <button class="secondary-btn" data-action="copy-code" data-code="${escapeHtml(detail.code)}">复制核销码</button>
               </div>
@@ -1575,9 +1580,9 @@
         <div class="glass-card detail-info">
           <div class="section-head">
             <div class="section-title">使用说明</div>
-            <div class="section-subtitle">到店出示二维码或核销码即可使用</div>
+            <div class="section-subtitle">到店出示二维码或核销码即可完成核销</div>
           </div>
-          <p class="detail-copy">${escapeHtml(coupon.description || '请在有效期内到支持商家核销使用。')}</p>
+          <p class="detail-copy">${escapeHtml(coupon.description || '请在有效期内到支持消费券的青年商家核销使用。')}</p>
         </div>
       </section>
     `;
@@ -1587,13 +1592,13 @@
     return `
       <section class="page-shell">
         <div class="hero-card">
-          <span class="hero-kicker">青年商家</span>
-          <div class="hero-title">附近可用商家</div>
-          <p class="hero-desc">消费券优先推荐支持青年活动场景的商家，定位成功时会按距离排序。</p>
+          <span class="hero-kicker">青年生活指南</span>
+          <div class="hero-title">沿着三江路线找可用商家</div>
+          <p class="hero-desc">消费券优先推荐支持青年活动场景的商家，定位成功时会按距离排序，方便你拆袋后直接到店使用。</p>
         </div>
 
         <div class="glass-card search-card">
-          <input class="search-input" data-model="merchants.keyword" value="${escapeHtml(state.merchants.keyword)}" placeholder="搜索商家名称">
+          <input class="search-input" data-model="merchants.keyword" value="${escapeHtml(state.merchants.keyword)}" placeholder="搜索青年商家名称">
           <div class="category-row" style="margin-top: 12px;">
             ${(content.merchantCategories || []).map((item) => `
               <button class="category-chip ${state.merchants.currentCategory === item.id ? 'active' : ''}" data-action="switch-merchant-category" data-category="${escapeHtml(item.id)}">${escapeHtml(item.name)}</button>
@@ -1610,7 +1615,7 @@
                     <div class="merchant-name">${escapeHtml(item.name)}</div>
                     <div class="merchant-address">${escapeHtml(item.address)}</div>
                   </div>
-                  <span class="tiny-chip">${escapeHtml(item.distanceText || item.distance || '推荐商家')}</span>
+                  <span class="tiny-chip">${escapeHtml(item.distanceText || item.distance || '青年推荐')}</span>
                 </div>
                 <div class="tag-row">
                   <span class="tag">${escapeHtml(item.category)}</span>
@@ -1619,7 +1624,7 @@
               </button>
             `).join('')}
           </div>
-        ` : '<div class="empty-panel">没有匹配到商家，试试切换分类或稍后再看。</div>'}
+        ` : '<div class="empty-panel">没有找到匹配商家，换个分类或稍后再看。</div>'}
       </section>
     `;
   }
@@ -1627,7 +1632,7 @@
   function renderMerchantDetailPage() {
     const merchant = state.merchants.detail;
     if (!merchant) {
-      return `<section class="page-shell"><div class="empty-panel">商家详情加载失败，请返回列表重试。</div></section>`;
+      return `<section class="page-shell"><div class="empty-panel">商家详情暂时加载失败，请返回路线页重试。</div></section>`;
     }
 
     return `
@@ -1644,8 +1649,8 @@
             <div class="info-value">${escapeHtml(merchant.businessHours || '以门店公示为准')}</div>
           </div>
           <div class="info-row">
-            <div class="info-label">联系人</div>
-            <div class="info-value">${escapeHtml(merchant.contactName || '门店客服')}</div>
+            <div class="info-label">联系人员</div>
+            <div class="info-value">${escapeHtml(merchant.contactName || '门店伙伴')}</div>
           </div>
           <div class="info-row">
             <div class="info-label">详细地址</div>
@@ -1654,8 +1659,7 @@
         </div>
 
         <div class="page-actions">
-          <button class="primary-btn" data-action="open-map">导航到这里</button>
-          <button class="secondary-btn" data-action="call-merchant">联系商家</button>
+          <button class="primary-btn" data-action="open-map">导航前往门店</button>
         </div>
       </section>
     `;
@@ -1666,8 +1670,8 @@
       <section class="page-shell">
         <div class="hero-card">
           <span class="hero-kicker">政策福利</span>
-          <div class="hero-title">青年政策一页通览</div>
-          <p class="hero-desc">就业、培训、安居和补贴政策统一收口，适合拆袋后继续深入查看。</p>
+          <div class="hero-title">青年政策与成长支持</div>
+          <p class="hero-desc">就业、培训、安居和补贴政策已经收口到一页，适合拆袋后继续深入查看。</p>
         </div>
 
         <div class="glass-card mode-switch">
@@ -1701,7 +1705,7 @@
   function renderPolicyDetailPage() {
     const policy = state.policies.detail;
     if (!policy) {
-      return `<section class="page-shell"><div class="empty-panel">政策详情加载失败，请返回列表重试。</div></section>`;
+      return `<section class="page-shell"><div class="empty-panel">政策详情暂时加载失败，请返回列表重试。</div></section>`;
     }
 
     return `
@@ -1732,8 +1736,8 @@
       <section class="page-shell">
         <div class="hero-card">
           <span class="hero-kicker">红包记录</span>
-          <div class="hero-title">我的青春红包</div>
-          <p class="hero-desc">共 ${state.redpackets.total} 条发放记录，当前状态会同步红包发放进度。</p>
+          <div class="hero-title">我的三江红包</div>
+          <p class="hero-desc">共 ${state.redpackets.total} 条红包记录，到账状态会在这里持续同步。</p>
         </div>
 
         ${state.redpackets.list.length ? `
@@ -1752,15 +1756,15 @@
         ` : '<div class="empty-panel">还没有红包记录，先回首页领取青春福袋。</div>'}
 
         <div class="page-actions">
-          <button class="secondary-btn" data-route="/lottery">进入抽奖页</button>
+          <button class="secondary-btn" data-route="/lottery">进入青春抽奖区</button>
         </div>
       </section>
     `;
   }
 
   function renderProfilePage() {
-    const switchIdentityButton = state.session.mode === 'mock'
-      ? '<button class="secondary-btn mini-btn" data-action="switch-identity">换号测试</button>'
+    const switchIdentityButton = state.session.mode === 'mock' && /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname)
+      ? '<button class="secondary-btn mini-btn" data-action="switch-identity">生成预览身份</button>'
       : '';
 
     return `
@@ -1769,8 +1773,8 @@
           <div class="profile-top">
             <div class="avatar">${escapeHtml(getAvatarText())}</div>
             <div class="profile-main">
-              <div class="profile-name">${escapeHtml(state.session.userInfo?.nickname || '青春用户')}</div>
-              <span class="profile-phone">${escapeHtml(state.session.userInfo?.phone || '待绑定手机号')}</span>
+              <div class="profile-name">${escapeHtml(state.session.userInfo?.nickname || '三江青年用户')}</div>
+              <span class="profile-phone">${escapeHtml(state.session.userInfo?.phone || '待绑定领奖手机号')}</span>
             </div>
             ${switchIdentityButton}
           </div>
@@ -1797,31 +1801,28 @@
 
         <div class="list-stack">
           <button class="surface-card menu-card" data-route="/lottery">
-            <div class="menu-title">进入抽奖页面</div>
-            <p class="menu-desc">查看大转盘、九宫格和你的抽奖结果。</p>
+            <div class="menu-title">进入青春抽奖区</div>
+            <p class="menu-desc">查看三江转盘、青春九宫格和你的抽奖结果。</p>
           </button>
           <button class="surface-card menu-card" data-route="/merchants">
-            <div class="menu-title">附近青年商家</div>
-            <p class="menu-desc">找到支持消费券的商家和青年活动场景。</p>
+            <div class="menu-title">三江青年商家</div>
+            <p class="menu-desc">找到支持消费券的商家和青年活动路线。</p>
           </button>
           <button class="surface-card menu-card" data-route="/policies">
             <div class="menu-title">政策福利清单</div>
-            <p class="menu-desc">继续查看就业、培训、安居和补贴政策。</p>
+            <p class="menu-desc">继续查看就业、培训、安居和补贴支持。</p>
           </button>
         </div>
 
         <div class="glass-card rules-card">
           <div class="section-head">
             <div class="section-title">使用提醒</div>
-            <div class="section-subtitle">领取、发放和核销说明</div>
+            <div class="section-subtitle">领取、到账与核销提醒</div>
           </div>
           <div class="list-stack">
             ${(content.activityRules || []).map((item, index) => `
               <div class="list-card"><div class="rule-text">${index + 1}. ${escapeHtml(item)}</div></div>
             `).join('')}
-          </div>
-          <div class="page-actions" style="margin-top: 14px;">
-            <button class="secondary-btn" data-action="contact-service">联系客服 ${escapeHtml(content.serviceInfo?.phone || '')}</button>
           </div>
         </div>
       </section>
@@ -1848,7 +1849,7 @@
       <div class="loading-overlay">
         <div class="loading-card">
           <span class="spinner"></span>
-          <span>${state.bootstrapping ? '正在进入 H5 客户端...' : '页面加载中...'}</span>
+          <span>${state.bootstrapping ? '三江青年加载中...' : '正在同步青春页面状态...'}</span>
         </div>
       </div>
     `;
@@ -1866,12 +1867,12 @@
     return `
       <div class="modal-backdrop">
         <div class="modal-panel">
-          <div class="modal-title">绑定手机号后即可继续</div>
-          <p class="modal-copy">请输入手机号以继续领取福袋，并用于后续权益查询与核销校验。</p>
-          <input class="text-input" data-model="receive.phone" value="${escapeHtml(state.receive.phone)}" maxlength="11" placeholder="请输入手机号">
+          <div class="modal-title">绑定领奖手机号后继续</div>
+          <p class="modal-copy">当前开袋结果已经锁定，绑定成功后即可继续查看荣誉海报并进入首页抽奖区。</p>
+          <input class="text-input" data-model="receive.phone" value="${escapeHtml(state.receive.phone)}" maxlength="11" placeholder="请输入领奖手机号">
           <div class="modal-actions">
-            <button class="primary-btn" data-action="bind-phone">绑定手机号并继续</button>
-            <button class="secondary-btn" data-action="close-phone-modal">稍后再说</button>
+            <button class="primary-btn" data-action="bind-phone">绑定并继续</button>
+            <button class="secondary-btn" data-action="close-phone-modal">暂不绑定</button>
           </div>
         </div>
       </div>
@@ -1886,7 +1887,7 @@
 
     const isSharePoster = state.homePoster.type === 'share';
     const primaryAction = isSharePoster
-      ? '<button class="primary-btn" data-action="share-home-poster">立即分享海报</button>'
+      ? '<button class="primary-btn" data-action="share-home-poster">立即分享青年海报</button>'
       : '<button class="primary-btn" data-route="/redpackets">查看红包记录</button>';
 
     return `
@@ -1894,7 +1895,7 @@
         <div class="modal-panel poster-modal-panel">
           <div class="poster-card poster-modal-card">
             <div class="poster-headline">${escapeHtml(poster.headline || '海报已生成')}</div>
-            <div class="poster-title">${escapeHtml(poster.title || '青春福袋')}</div>
+            <div class="poster-title">${escapeHtml(poster.title || '三江青年福袋')}</div>
             <div class="poster-amount-row">
               <span class="poster-currency">¥</span>
               <span class="poster-amount">${money(poster.amount)}</span>
@@ -2035,20 +2036,8 @@
       case 'copy-code':
         copyText(target.dataset.code);
         break;
-      case 'call-merchant':
-        if (state.merchants.detail?.contactPhone) {
-          window.location.href = `tel:${state.merchants.detail.contactPhone}`;
-        } else {
-          setToast('暂无联系电话');
-        }
-        break;
       case 'open-map':
         openMap(state.merchants.detail);
-        break;
-      case 'contact-service':
-        if (content.serviceInfo?.phone) {
-          window.location.href = `tel:${content.serviceInfo.phone}`;
-        }
         break;
       default:
         break;

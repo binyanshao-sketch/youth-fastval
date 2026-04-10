@@ -7,6 +7,7 @@ const { requireRole } = require('../middleware/auth')
 const SystemConfigService = require('../services/SystemConfigService')
 const AdminLogService = require('../services/AdminLogService')
 const LotteryService = require('../services/LotteryService')
+const QiniuService = require('../services/QiniuService')
 const rateLimit = require('../middleware/rateLimit')
 const logger = require('../utils/logger')
 
@@ -92,6 +93,24 @@ router.use('/merchants', merchantsRouter)
 router.use('/coupons', couponsRouter)
 router.use('/finance', financeRouter)
 router.use('/statistics', statisticsRouter)
+
+// ============================================================
+// 七牛云上传凭证（仅限管理员）
+// ============================================================
+router.get('/upload/token', adminAuth, rateLimit({ windowMs: 60000, max: 30 }), (req, res) => {
+  try {
+    if (!QiniuService.isConfigured()) {
+      return res.status(503).json({ success: false, message: '文件上传服务未配置' });
+    }
+
+    const prefix = String(req.query.prefix || 'uploads/').replace(/[^a-zA-Z0-9_\-/]/g, '');
+    const result = QiniuService.getUploadToken({ prefix });
+    res.json({ success: true, data: result });
+  } catch (error) {
+    logger.error('获取七牛上传凭证失败', { error: error.message });
+    res.status(500).json({ success: false, message: '获取上传凭证失败' });
+  }
+});
 
 router.post('/login', rateLimit({ windowMs: 60000, max: 5, message: '登录尝试过于频繁，请稍后再试' }), async (req, res) => {
   try {
@@ -360,7 +379,11 @@ router.get('/lucky-bag/config', adminAuth, async (req, res) => {
   }
 })
 
-router.put('/lucky-bag/config', adminAuth, async (req, res) => {
+router.put('/lucky-bag/config', [...adminAuth, body('activityStartTime').optional({ nullable: true }).custom((v) => !v || isValidDateTime(v)).withMessage('activityStartTime is invalid'), body('activityEndTime').optional({ nullable: true }).custom((v) => !v || isValidDateTime(v)).withMessage('activityEndTime is invalid'), body('policyUrl').optional({ nullable: true }).custom(isValidHttpUrl).withMessage('policyUrl is invalid'), body('dailyLimit').optional({ nullable: true }).isInt({ min: 1, max: 1000000 }).withMessage('dailyLimit must be a positive integer'), body('isActive').optional().isBoolean().withMessage('isActive must be boolean'), body('lotteryMode').optional().isIn(['wheel', 'grid']).withMessage('lotteryMode is invalid')], async (req, res) => {
+  const message = getValidationMessage(req)
+  if (message) {
+    return res.status(400).json({ success: false, message })
+  }
   try {
     const {
       activityStartTime,
