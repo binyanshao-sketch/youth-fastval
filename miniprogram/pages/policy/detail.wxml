@@ -1,0 +1,17 @@
+<view class="page-shell policy-detail-page" wx:if="{{policy}}">
+  <view class="surface-card policy-detail-hero">
+    <text class="hero-kicker detail-kicker">{{policy.tags[0] || '政策'}}</text>
+    <text class="policy-detail-title">{{policy.title}}</text>
+    <text class="policy-detail-summary">{{policy.summary}}</text>
+    <view class="tag-row">
+      <text class="tag" wx:for="{{policy.tags}}" wx:key="index">{{item}}</text>
+    </view>
+  </view>
+
+  <view class="list-stack">
+    <view class="glass-card section-card" wx:for="{{policy.sections}}" wx:key="index">
+      <text class="section-title small">{{item.title}}</text>
+      <text class="section-copy">{{item.content}}</text>
+    </view>
+  </view>
+</view>

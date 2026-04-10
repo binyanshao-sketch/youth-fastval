@@ -1,0 +1,113 @@
+version: '3.8'
+
+services:
+  # Nginx 反向代理
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/ssl:/etc/nginx/ssl
+      - ./admin/dist:/usr/share/nginx/html/admin
+      - ./merchant-h5:/usr/share/nginx/html/merchant
+    depends_on:
+      server:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: always
+
+  # 后端服务
+  server:
+    build: ./server
+    # 仅内部通信，不暴露到宿主机
+    expose:
+      - "3000"
+    environment:
+      - NODE_ENV=production
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_NAME=youth_fastval
+      - DB_USER=app_user
+      - DB_PASSWORD=${DB_PASSWORD}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+      - JWT_SECRET=${JWT_SECRET}
+      - CORS_ORIGINS=${CORS_ORIGINS}
+      - WX_APPID=${WX_APPID}
+      - WX_SECRET=${WX_SECRET}
+      - WX_PAY_MCHID=${WX_PAY_MCHID}
+      - WX_PAY_KEY=${WX_PAY_KEY}
+      - WX_PAY_CERT_PATH=${WX_PAY_CERT_PATH:-/app/certs/apiclient_cert.pem}
+      - WX_PAY_KEY_PATH=${WX_PAY_KEY_PATH:-/app/certs/apiclient_key.pem}
+      - WX_PAY_SPBILL_IP=${WX_PAY_SPBILL_IP}
+      - WX_USE_MOCK=${WX_USE_MOCK:-false}
+      - TENCENT_SECRET_ID=${TENCENT_SECRET_ID}
+      - TENCENT_SECRET_KEY=${TENCENT_SECRET_KEY}
+      - TENCENT_SMS_APP_ID=${TENCENT_SMS_APP_ID}
+      - TENCENT_SMS_TEMPLATE_ID=${TENCENT_SMS_TEMPLATE_ID}
+      - TENCENT_SMS_SIGN=${TENCENT_SMS_SIGN}
+    volumes:
+      - ./server/certs:/app/certs
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: always
+
+  # MySQL 数据库（不暴露端口到宿主机）
+  mysql:
+    image: mysql:8.0
+    expose:
+      - "3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
+      - MYSQL_DATABASE=youth_fastval
+      - MYSQL_USER=app_user
+      - MYSQL_PASSWORD=${DB_PASSWORD}
+      - TZ=Asia/Shanghai
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/init.sql
+    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${DB_ROOT_PASSWORD}"]
+      interval: 20s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    restart: always
+
+  # Redis 缓存（不暴露端口到宿主机，启用密码）
+  redis:
+    image: redis:7-alpine
+    expose:
+      - "6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD is required} --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: always
+
+volumes:
+  mysql_data:
+  redis_data:

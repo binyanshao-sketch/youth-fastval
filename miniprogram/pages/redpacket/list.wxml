@@ -1,0 +1,22 @@
+<view class="page-shell redpacket-page">
+  <view class="surface-card redpacket-hero">
+    <text class="hero-kicker redpacket-kicker">红包记录</text>
+    <text class="redpacket-title">我的青春红包</text>
+    <text class="redpacket-desc">共 {{total}} 条发放记录，当前状态会同步微信红包的到账进度。</text>
+  </view>
+
+  <view wx:if="{{list.length}}" class="list-stack">
+    <view class="surface-card redpacket-card" wx:for="{{list}}" wx:key="id">
+      <view class="redpacket-main">
+        <text class="redpacket-money">¥{{item.amount}}</text>
+        <text class="status-chip {{item.status === 2 ? 'active' : (item.status === 3 ? 'failed' : 'pending')}}">{{item.status === 2 ? '已到账' : (item.status === 3 ? '待处理' : '发放中')}}</text>
+      </view>
+      <text class="redpacket-blessing">{{item.blessing}}</text>
+      <text class="redpacket-time">领取时间：{{item.createTime}}</text>
+    </view>
+  </view>
+
+  <view wx:else class="empty-panel">还没有红包记录，先回首页领取青春福袋。</view>
+
+  <button class="secondary-btn" bindtap="goToLottery">进入抽奖页</button>
+</view>

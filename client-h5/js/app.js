@@ -1,0 +1,2119 @@
+(function () {
+  const content = window.CLIENT_H5_CONTENT || {};
+  const root = document.getElementById('app');
+  const bagOptions = Array.from({ length: 9 }).map((_, index) => ({
+    id: index,
+    label: `福袋 ${index + 1}`,
+    tag: index < 3 ? '热力开袋' : index < 6 ? '青年好运' : '隐藏惊喜'
+  }));
+  const gridMapping = [0, 1, 2, 7, null, 3, 6, 5, 4];
+  const storageKeys = {
+    token: 'client_h5_token',
+    mode: 'client_h5_mode',
+    deviceId: 'client_h5_device_id',
+    apiBase: 'client_h5_api_base'
+  };
+
+  const emptyStats = () => ({
+    redpacketCount: 0,
+    couponCount: 0,
+    totalAmount: '0.00',
+    hasDrawnLottery: false
+  });
+
+  const state = {
+    apiBase: resolveApiBase(),
+    bootstrapping: true,
+    routeLoading: false,
+    route: parseRoute(),
+    sessionPromise: null,
+    toast: null,
+    unsupportedMessage: '',
+    session: {
+      token: localStorage.getItem(storageKeys.token) || '',
+      mode: localStorage.getItem(storageKeys.mode) || 'mock',
+      deviceId: getOrCreateDeviceId(),
+      userInfo: null
+    },
+    activity: {
+      isActive: false,
+      statusText: '活动未开始',
+      startTime: '',
+      endTime: '',
+      countdown: null
+    },
+    luckyBag: null,
+    userStats: emptyStats(),
+    receive: {
+      selectedSlot: null,
+      agreePrivacy: true,
+      phone: '',
+      showPhoneSheet: false,
+      submitting: false
+    },
+    lottery: {
+      activeMode: 'wheel',
+      mode: 'wheel',
+      config: {
+        wheel: [],
+        grid: []
+      },
+      wheelRotation: 0,
+      wheelDuration: 0,
+      gridActiveIndex: -1,
+      drawing: false,
+      hasDrawn: false,
+      result: null
+    },
+    coupons: {
+      currentTab: '1',
+      pool: {
+        1: [],
+        2: [],
+        3: []
+      },
+      detail: null
+    },
+    merchants: {
+      keyword: '',
+      currentCategory: '',
+      list: [],
+      detail: null,
+      location: null,
+      locationRequested: false
+    },
+    policies: {
+      currentCategory: '',
+      displayList: content.policies || [],
+      detail: null
+    },
+    redpackets: {
+      list: [],
+      total: 0
+    },
+    homePoster: {
+      visible: false,
+      type: 'redpacket'
+    },
+    showPosterGlow: true
+  };
+
+  let renderQueued = false;
+  let toastTimer = null;
+  let countdownTimer = null;
+  let glowTimer = null;
+  let gridTimer = null;
+  let merchantSearchTimer = null;
+  let lastHomePosterKey = '';
+
+  function resolveApiBase() {
+    const fromStorage = localStorage.getItem(storageKeys.apiBase);
+    if (fromStorage) {
+      return fromStorage;
+    }
+
+    if (window.location.protocol.startsWith('http')) {
+      return window.location.origin;
+    }
+
+    return 'http://127.0.0.1:3000';
+  }
+
+  function getOrCreateDeviceId() {
+    const existing = localStorage.getItem(storageKeys.deviceId);
+    if (existing) {
+      return existing;
+    }
+
+    const created = window.crypto?.randomUUID
+      ? `h5_${window.crypto.randomUUID().replace(/-/g, '')}`
+      : `h5_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+
+    localStorage.setItem(storageKeys.deviceId, created);
+    return created;
+  }
+
+  function parseRoute() {
+    const rawHash = window.location.hash.replace(/^#/, '') || '/home';
+    const [pathname] = rawHash.split('?');
+    const segments = pathname.split('/').filter(Boolean);
+
+    if (!segments.length) {
+      return { name: 'home', params: {} };
+    }
+
+    if (segments[0] === 'coupon' && segments[1]) {
+      return { name: 'coupon-detail', params: { id: segments[1] } };
+    }
+
+    if (segments[0] === 'merchant' && segments[1]) {
+      return { name: 'merchant-detail', params: { id: segments[1] } };
+    }
+
+    if (segments[0] === 'policy' && segments[1]) {
+      return { name: 'policy-detail', params: { id: segments[1] } };
+    }
+
+    const mapping = {
+      home: 'home',
+      receive: 'receive',
+      result: 'result',
+      lottery: 'lottery',
+      coupons: 'coupons',
+      merchants: 'merchants',
+      policies: 'policies',
+      redpackets: 'redpackets',
+      profile: 'profile'
+    };
+
+    return {
+      name: mapping[segments[0]] || 'home',
+      params: {}
+    };
+  }
+
+  function queueRender() {
+    if (renderQueued) {
+      return;
+    }
+
+    renderQueued = true;
+    window.requestAnimationFrame(() => {
+      renderQueued = false;
+      render();
+    });
+  }
+
+  function setToast(message) {
+    state.toast = message;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      state.toast = null;
+      queueRender();
+    }, 2200);
+    queueRender();
+  }
+
+  function clearSession() {
+    state.session.token = '';
+    state.session.userInfo = null;
+    localStorage.removeItem(storageKeys.token);
+  }
+
+  function setUnsupportedClient(message) {
+    clearSession();
+    state.session.mode = 'restricted';
+    state.session.userInfo = null;
+    state.receive.showPhoneSheet = false;
+    state.homePoster.visible = false;
+    state.unsupportedMessage = message || '当前环境不开放 H5 参与，请使用微信小程序进入活动。';
+    localStorage.removeItem(storageKeys.mode);
+  }
+
+  async function apiRequest(path, options = {}) {
+    const method = options.method || 'GET';
+    const auth = options.auth !== false;
+    const retry = options.retry !== false;
+    const payload = options.data || null;
+    const url = new URL(path, state.apiBase);
+
+    if (method === 'GET' && payload) {
+      Object.keys(payload).forEach((key) => {
+        const value = payload[key];
+        if (value !== undefined && value !== null && value !== '') {
+          url.searchParams.set(key, value);
+        }
+      });
+    }
+
+    const response = await fetch(url.toString(), {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(auth && state.session.token ? { Authorization: `Bearer ${state.session.token}` } : {})
+      },
+      body: method === 'GET' ? undefined : JSON.stringify(payload || {})
+    });
+
+    const result = await response.json().catch(() => ({
+      success: false,
+      message: '服务返回了不可解析的数据'
+    }));
+
+    if (response.status === 401 && auth && retry) {
+      clearSession();
+      await ensureSession();
+      return apiRequest(path, { ...options, retry: false });
+    }
+
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || '请求失败');
+    }
+
+    return result.data;
+  }
+
+  async function ensureSession(forceRefresh = false) {
+    if (state.unsupportedMessage) {
+      throw new Error(state.unsupportedMessage);
+    }
+
+    if (!forceRefresh && state.session.token) {
+      return state.session.token;
+    }
+
+    if (state.sessionPromise) {
+      return state.sessionPromise;
+    }
+
+    state.sessionPromise = (async () => {
+      let data;
+      try {
+        data = await apiRequest('/api/user/h5/login', {
+          method: 'POST',
+          auth: false,
+          data: {
+            deviceId: state.session.deviceId
+          }
+        });
+      } catch (error) {
+        if (String(error.message || '').includes('H5')) {
+          setUnsupportedClient('当前环境不开放 H5 参与，请使用微信小程序进入活动。');
+        }
+        throw error;
+      }
+
+      state.session.token = data.token;
+      state.session.mode = data.mode || 'mock';
+      state.unsupportedMessage = '';
+      localStorage.setItem(storageKeys.token, data.token);
+      localStorage.setItem(storageKeys.mode, state.session.mode);
+      return data.token;
+    })().finally(() => {
+      state.sessionPromise = null;
+    });
+
+    return state.sessionPromise;
+  }
+
+  async function loadUserInfo(force = false) {
+    if (state.session.userInfo && !force) {
+      return state.session.userInfo;
+    }
+
+    state.session.userInfo = await apiRequest('/api/user/info');
+    return state.session.userInfo;
+  }
+
+  async function loadActivityStatus() {
+    const data = await apiRequest('/api/status', { auth: false });
+    state.activity.isActive = !!data.isActive;
+    state.activity.statusText = data.isActive ? '进行中' : '即将开启';
+    state.activity.startTime = data.startTime || '';
+    state.activity.endTime = data.endTime || '';
+    syncCountdown();
+  }
+
+  function syncCountdown() {
+    clearInterval(countdownTimer);
+    countdownTimer = null;
+
+    if (state.route.name !== 'home' || state.activity.isActive || !state.activity.startTime) {
+      state.activity.countdown = null;
+      return;
+    }
+
+    const update = () => {
+      const diff = new Date(state.activity.startTime).getTime() - Date.now();
+      if (diff <= 0) {
+        state.activity.isActive = true;
+        state.activity.statusText = '进行中';
+        state.activity.countdown = null;
+        clearInterval(countdownTimer);
+        countdownTimer = null;
+        queueRender();
+        return;
+      }
+
+      state.activity.countdown = {
+        days: Math.floor(diff / (1000 * 60 * 60 * 24)),
+        hours: Math.floor((diff / (1000 * 60 * 60)) % 24),
+        minutes: Math.floor((diff / (1000 * 60)) % 60),
+        seconds: Math.floor((diff / 1000) % 60)
+      };
+      queueRender();
+    };
+
+    update();
+    countdownTimer = setInterval(update, 1000);
+  }
+
+  async function loadHomeData() {
+    const [luckyBag, stats] = await Promise.all([
+      apiRequest('/api/user/luckyBag/my'),
+      apiRequest('/api/user/stats')
+    ]);
+
+    state.luckyBag = luckyBag || null;
+    state.userStats = {
+      ...emptyStats(),
+      ...(stats || {})
+    };
+
+    if (luckyBag && luckyBag.selectedSlot !== undefined && luckyBag.selectedSlot !== null) {
+      state.receive.selectedSlot = luckyBag.selectedSlot;
+    }
+  }
+
+  async function loadLuckyBagResult() {
+    state.luckyBag = await apiRequest('/api/user/luckyBag/my');
+    if (!state.luckyBag) {
+      return false;
+    }
+
+    state.showPosterGlow = true;
+    clearTimeout(glowTimer);
+    glowTimer = setTimeout(() => {
+      state.showPosterGlow = false;
+      queueRender();
+    }, 1600);
+    return true;
+  }
+
+  async function loadLotteryPage() {
+    const [config, result] = await Promise.all([
+      apiRequest('/api/user/lottery/config'),
+      apiRequest('/api/user/lottery/my')
+    ]);
+
+    state.lottery.config = config || { wheel: [], grid: [] };
+    state.lottery.result = result || null;
+    state.lottery.hasDrawn = !!result;
+    state.lottery.drawing = false;
+
+    if (result) {
+      state.lottery.mode = result.gameType;
+      state.lottery.gridActiveIndex = result.gameType === 'grid' ? result.prize.index : -1;
+      state.lottery.wheelRotation = result.gameType === 'wheel'
+        ? getWheelTargetRotation(result.prize.index, state.lottery.config.wheel.length)
+        : 0;
+      state.lottery.wheelDuration = 0;
+    } else {
+      state.lottery.gridActiveIndex = -1;
+      state.lottery.wheelRotation = 0;
+      state.lottery.wheelDuration = 0;
+    }
+  }
+
+  function getHomePosterKey() {
+    if (!state.luckyBag) {
+      return '';
+    }
+
+    return [
+      state.luckyBag.receivedAt || '',
+      state.userStats.hasDrawnLottery ? 'drawn' : 'pending',
+      state.lottery.result?.prize?.key || 'no-result'
+    ].join(':');
+  }
+
+  function getSharePoster() {
+    const result = state.lottery.result;
+    const basePoster = state.luckyBag?.poster || {};
+
+    return {
+      headline: '分享海报已就绪',
+      title: result?.prize?.posterTitle || '把这份青春好运分享出去',
+      amount: state.luckyBag?.redPacket?.amount || basePoster.amount || '0.00',
+      blessing: result?.prize?.posterMessage || '邀请朋友一起打开青春福袋，随机拆出红包和抽奖惊喜。',
+      footer: '分享当前页面，让朋友也来领取福袋并进入首页抽奖区。'
+    };
+  }
+
+  function getActiveHomePoster() {
+    if (state.homePoster.type === 'share') {
+      return getSharePoster();
+    }
+
+    return state.luckyBag?.poster || {
+      headline: '红包海报',
+      title: '青春福袋已开启',
+      amount: state.luckyBag?.redPacket?.amount || '0.00',
+      blessing: state.luckyBag?.redPacket?.blessing || '',
+      footer: '查看红包金额、祝福文案和领取结果。'
+    };
+  }
+
+  function openHomePoster(type = 'random') {
+    if (!state.luckyBag) {
+      return;
+    }
+
+    state.homePoster.type = type === 'random'
+      ? (Math.random() < 0.5 ? 'redpacket' : 'share')
+      : type;
+    state.homePoster.visible = true;
+  }
+
+  function maybeOpenHomePoster() {
+    if (state.route.name !== 'home' || !state.luckyBag) {
+      state.homePoster.visible = false;
+      return;
+    }
+
+    const key = getHomePosterKey();
+    if (!key || key === lastHomePosterKey) {
+      return;
+    }
+
+    lastHomePosterKey = key;
+    openHomePoster('random');
+  }
+
+  async function loadCoupons() {
+    const [unused, used, expired] = await Promise.all([
+      apiRequest('/api/user/coupons/my', { data: { status: 1 } }),
+      apiRequest('/api/user/coupons/my', { data: { status: 2 } }),
+      apiRequest('/api/user/coupons/my', { data: { status: 3 } })
+    ]);
+
+    state.coupons.pool = {
+      1: (unused || []).map(normalizeCoupon),
+      2: (used || []).map(normalizeCoupon),
+      3: (expired || []).map(normalizeCoupon)
+    };
+  }
+
+  async function loadCouponDetail(id) {
+    state.coupons.detail = await apiRequest(`/api/user/coupon/${id}/qrcode`);
+  }
+
+  async function loadRedpackets() {
+    const data = await apiRequest('/api/user/redpacket/list');
+    state.redpackets.list = data.list || [];
+    state.redpackets.total = data.total || 0;
+  }
+
+  async function loadProfile() {
+    const [userInfo, stats] = await Promise.all([
+      loadUserInfo(true),
+      apiRequest('/api/user/stats')
+    ]);
+
+    state.session.userInfo = userInfo;
+    state.userStats = {
+      ...emptyStats(),
+      ...(stats || {})
+    };
+  }
+
+  async function loadMerchants() {
+    try {
+      const data = await apiRequest('/api/user/merchants/nearby', {
+        data: {
+          keyword: state.merchants.keyword,
+          category: state.merchants.currentCategory,
+          latitude: state.merchants.location?.latitude,
+          longitude: state.merchants.location?.longitude
+        }
+      });
+
+      state.merchants.list = (data.list && data.list.length)
+        ? data.list
+        : filterLocalMerchants(content.merchantFallbacks || []);
+    } catch (error) {
+      state.merchants.list = filterLocalMerchants(content.merchantFallbacks || []);
+    }
+
+    requestLocation();
+  }
+
+  function requestLocation() {
+    if (state.merchants.locationRequested || !navigator.geolocation) {
+      return;
+    }
+
+    state.merchants.locationRequested = true;
+    navigator.geolocation.getCurrentPosition((position) => {
+      state.merchants.location = {
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude
+      };
+
+      if (state.route.name === 'merchants') {
+        loadMerchants()
+          .then(queueRender)
+          .catch(() => {});
+      }
+    }, () => {});
+  }
+
+  function filterLocalMerchants(source) {
+    const keyword = state.merchants.keyword.trim();
+    const category = state.merchants.currentCategory;
+
+    return source.filter((item) => {
+      const matchKeyword = !keyword || item.name.includes(keyword);
+      const matchCategory = !category || item.category === category;
+      return matchKeyword && matchCategory;
+    });
+  }
+
+  function loadMerchantDetail(id) {
+    const source = state.merchants.list.length ? state.merchants.list : (content.merchantFallbacks || []);
+    state.merchants.detail = source.find((item) => String(item.id) === String(id)) || null;
+  }
+
+  function loadPolicyDetail(id) {
+    state.policies.detail = id === 'privacy'
+      ? content.privacyPolicy
+      : (content.policies || []).find((item) => item.id === id) || null;
+  }
+
+  function setPolicyCategory(category) {
+    state.policies.currentCategory = category;
+    state.policies.displayList = category
+      ? (content.policies || []).filter((item) => item.category === category)
+      : (content.policies || []);
+  }
+
+  async function prepareRoute() {
+    state.route = parseRoute();
+    state.routeLoading = true;
+    state.homePoster.visible = state.route.name === 'home' ? state.homePoster.visible : false;
+    clearTimeout(glowTimer);
+    clearTimeout(gridTimer);
+    syncCountdown();
+    queueRender();
+
+    try {
+      switch (state.route.name) {
+        case 'home':
+          await Promise.all([loadActivityStatus(), loadHomeData()]);
+          if (state.luckyBag) {
+            await loadLotteryPage();
+          }
+          maybeOpenHomePoster();
+          break;
+        case 'receive':
+          await Promise.all([loadActivityStatus(), loadHomeData(), loadUserInfo(true)]);
+          if (state.luckyBag) {
+            navigate(state.userStats.hasDrawnLottery ? '/lottery' : '/result');
+            return;
+          }
+          break;
+        case 'result':
+          await Promise.all([loadHomeData(), loadUserInfo(true)]);
+          if (!(await loadLuckyBagResult())) {
+            navigate('/receive');
+            return;
+          }
+          break;
+        case 'lottery':
+          await Promise.all([loadHomeData(), loadUserInfo(true)]);
+          if (!state.luckyBag) {
+            setToast('请先领取青春福袋');
+            navigate('/receive');
+            return;
+          }
+          await loadLotteryPage();
+          break;
+        case 'coupons':
+          await Promise.all([loadCoupons(), loadUserInfo(true)]);
+          break;
+        case 'coupon-detail':
+          await Promise.all([loadCoupons(), loadCouponDetail(state.route.params.id)]);
+          break;
+        case 'merchants':
+          await Promise.all([loadMerchants(), loadUserInfo(true)]);
+          break;
+        case 'merchant-detail':
+          await Promise.all([loadMerchants(), loadUserInfo(true)]);
+          loadMerchantDetail(state.route.params.id);
+          break;
+        case 'policies':
+          setPolicyCategory(state.policies.currentCategory || '');
+          break;
+        case 'policy-detail':
+          loadPolicyDetail(state.route.params.id);
+          break;
+        case 'redpackets':
+          await Promise.all([loadRedpackets(), loadUserInfo(true)]);
+          break;
+        case 'profile':
+          await loadProfile();
+          break;
+        default:
+          navigate('/home');
+          return;
+      }
+    } catch (error) {
+      setToast(error.message || '页面加载失败');
+    } finally {
+      state.routeLoading = false;
+      syncCountdown();
+      queueRender();
+    }
+  }
+
+  function navigate(path) {
+    window.location.hash = `#${path}`;
+  }
+
+  function normalizeCoupon(item) {
+    const source = item.coupon || item;
+    return {
+      id: item.id,
+      code: item.code || '',
+      status: item.status,
+      name: source.name,
+      amount: source.amount,
+      minSpend: source.minSpend ?? source.min_spend,
+      validFrom: source.validFrom ?? source.valid_from,
+      validTo: source.validTo ?? source.valid_to,
+      description: source.description || ''
+    };
+  }
+
+  function getWheelTargetRotation(prizeIndex, count) {
+    if (!count) {
+      return 0;
+    }
+
+    const segment = 360 / count;
+    return 360 - (prizeIndex * segment);
+  }
+
+  function getGridCells() {
+    return gridMapping.map((prizeIndex) => {
+      if (prizeIndex === null) {
+        return { isCenter: true };
+      }
+
+      return {
+        ...(state.lottery.config.grid[prizeIndex] || {}),
+        prizeIndex
+      };
+    });
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function money(value) {
+    const numeric = Number(value || 0);
+    return Number.isFinite(numeric) ? numeric.toFixed(2) : '0.00';
+  }
+
+  function formatDateTime(value) {
+    if (!value) {
+      return '';
+    }
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return value;
+    }
+
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hour = String(date.getHours()).padStart(2, '0');
+    const minute = String(date.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day} ${hour}:${minute}`;
+  }
+
+  function getAvatarText() {
+    const name = state.session.userInfo?.nickname || '青';
+    return name.slice(0, 1);
+  }
+
+  function getCurrentCoupons() {
+    return state.coupons.pool[state.coupons.currentTab] || [];
+  }
+
+  function getRedpacketStatusLabel(status) {
+    if (Number(status) === 2) {
+      return '已到账';
+    }
+
+    if (Number(status) === 3) {
+      return '待处理';
+    }
+
+    return '发放中';
+  }
+
+  function getRedpacketStatusClass(status) {
+    if (Number(status) === 2) {
+      return 'active';
+    }
+
+    if (Number(status) === 3) {
+      return 'failed';
+    }
+
+    return 'pending';
+  }
+
+  function getRouteMeta() {
+    const mapping = {
+      home: { title: '青春福袋', subtitle: '九选一拆袋 · 祝福海报 · 所见即所得抽奖' },
+      receive: { title: '福袋开启', subtitle: '任选 1 个红包，进入第一屏幕流程' },
+      result: { title: '祝福海报', subtitle: '红包金额、发放状态和权益同步到账' },
+      lottery: { title: '抽奖页面', subtitle: '大转盘和九宫格，奖池直接可见' },
+      coupons: { title: '权益卡包', subtitle: '消费券、福利卡和核销入口' },
+      'coupon-detail': { title: '消费券详情', subtitle: '出示二维码或核销码即可使用' },
+      merchants: { title: '青年商家', subtitle: '附近可核销的商家和青年活动场景' },
+      'merchant-detail': { title: '商家详情', subtitle: '营业时间、地址和联系信息' },
+      policies: { title: '政策福利', subtitle: '就业、安居、培训和补贴一页通览' },
+      'policy-detail': { title: '政策详情', subtitle: '查看条目、适用人群和办理路径' },
+      redpackets: { title: '红包记录', subtitle: '查看红包发放进度和历史领取记录' },
+      profile: { title: '我的', subtitle: '权益、抽奖状态和服务说明' }
+    };
+
+    return mapping[state.route.name] || mapping.home;
+  }
+
+  async function switchIdentity() {
+    if (state.session.mode !== 'mock') {
+      setToast('当前环境不支持切换测试身份');
+      return;
+    }
+
+    clearSession();
+    state.session.deviceId = window.crypto?.randomUUID
+      ? `h5_${window.crypto.randomUUID().replace(/-/g, '')}`
+      : `h5_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+    localStorage.setItem(storageKeys.deviceId, state.session.deviceId);
+    state.luckyBag = null;
+    state.userStats = emptyStats();
+    state.session.userInfo = null;
+    state.receive.selectedSlot = null;
+    state.receive.phone = '';
+    state.receive.showPhoneSheet = false;
+    state.lottery.result = null;
+    state.lottery.hasDrawn = false;
+    state.lottery.gridActiveIndex = -1;
+    state.lottery.wheelRotation = 0;
+    state.lottery.wheelDuration = 0;
+    state.homePoster.visible = false;
+    state.homePoster.type = 'redpacket';
+    lastHomePosterKey = '';
+    queueRender();
+
+    try {
+      await ensureSession(true);
+      await prepareRoute();
+      setToast('已创建新的测试身份');
+    } catch (error) {
+      setToast(error.message || '切换测试身份失败');
+    }
+  }
+
+  async function onReceiveEntry() {
+    await loadActivityStatus();
+    await loadHomeData();
+
+    if (!state.activity.isActive) {
+      setToast('活动尚未开始');
+      return;
+    }
+
+    if (state.luckyBag) {
+      navigate(state.userStats.hasDrawnLottery ? '/lottery' : '/result');
+      return;
+    }
+
+    navigate('/receive');
+  }
+
+  function getUserLocation() {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        reject(new Error('浏览器不支持定位'));
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        (pos) => resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
+        () => reject(new Error('请允许获取位置信息后再试')),
+        { enableHighAccuracy: false, timeout: 10000 }
+      );
+    });
+  }
+
+  async function submitReceive() {
+    state.receive.submitting = true;
+    queueRender();
+
+    try {
+      let location;
+      try {
+        location = await getUserLocation();
+      } catch (locErr) {
+        setToast(locErr.message || '获取位置失败');
+        return;
+      }
+
+      const data = await apiRequest('/api/user/luckyBag/receive', {
+        method: 'POST',
+        data: {
+          slotIndex: state.receive.selectedSlot,
+          latitude: location.latitude,
+          longitude: location.longitude
+        }
+      });
+
+      state.luckyBag = data;
+      state.receive.showPhoneSheet = false;
+      await loadHomeData();
+      navigate('/result');
+    } catch (error) {
+      setToast(error.message || '开启福袋失败');
+    } finally {
+      state.receive.submitting = false;
+      queueRender();
+    }
+  }
+
+  async function onOpenBag() {
+    if (state.receive.selectedSlot === null || state.receive.selectedSlot === undefined) {
+      setToast('先从九个红包里选一个');
+      return;
+    }
+
+    if (!state.receive.agreePrivacy) {
+      setToast('请先阅读并同意隐私说明');
+      return;
+    }
+
+    await loadUserInfo(true);
+    if (!state.session.userInfo?.phone) {
+      state.receive.showPhoneSheet = true;
+      queueRender();
+      return;
+    }
+
+    await submitReceive();
+  }
+
+  async function bindPhoneAndContinue() {
+    if (!/^1[3-9]\d{9}$/.test(state.receive.phone.trim())) {
+      setToast('请输入正确的手机号');
+      return;
+    }
+
+    try {
+      await apiRequest('/api/user/h5/bindPhone', {
+        method: 'POST',
+        data: {
+          phone: state.receive.phone.trim()
+        }
+      });
+
+      await loadUserInfo(true);
+      state.receive.showPhoneSheet = false;
+      queueRender();
+      await submitReceive();
+    } catch (error) {
+      setToast(error.message || '绑定手机号失败');
+    }
+  }
+
+  async function drawLottery() {
+    if (state.lottery.drawing) {
+      return;
+    }
+
+    if (state.lottery.hasDrawn) {
+      setToast('\u4f60\u5df2\u7ecf\u5b8c\u6210\u62bd\u5956');
+      return;
+    }
+
+    state.lottery.drawing = true;
+    queueRender();
+
+    try {
+      const result = await apiRequest('/api/user/lottery/draw', {
+        method: 'POST',
+        data: {
+          gameType: state.lottery.mode
+        }
+      });
+
+      if (result.gameType === 'wheel') {
+        playWheel(result);
+      } else {
+        playGrid(result);
+      }
+    } catch (error) {
+      state.lottery.drawing = false;
+      queueRender();
+      setToast(error.message || '抽奖失败');
+    }
+  }
+
+  function playWheel(result) {
+    const extraTurns = 360 * 6;
+    const targetRotation = getWheelTargetRotation(result.prize.index, state.lottery.config.wheel.length);
+    state.lottery.wheelDuration = 4200;
+    state.lottery.wheelRotation = state.lottery.wheelRotation + extraTurns + targetRotation;
+    queueRender();
+
+    setTimeout(() => {
+      finishLottery(result);
+      state.lottery.wheelDuration = 0;
+      state.lottery.wheelRotation = targetRotation;
+      queueRender();
+    }, 4300);
+  }
+
+  function playGrid(result) {
+    clearTimeout(gridTimer);
+    const totalSteps = state.lottery.config.grid.length * 4 + result.prize.index;
+    let step = 0;
+
+    const tick = () => {
+      state.lottery.gridActiveIndex = step % state.lottery.config.grid.length;
+      queueRender();
+
+      if (step >= totalSteps) {
+        finishLottery(result);
+        return;
+      }
+
+      step += 1;
+      const remain = totalSteps - step;
+      const delay = remain < 6 ? 180 + (6 - remain) * 70 : 90;
+      gridTimer = setTimeout(tick, delay);
+    };
+
+    tick();
+  }
+
+  function finishLottery(result) {
+    clearTimeout(gridTimer);
+
+    state.lottery.drawing = false;
+    state.lottery.hasDrawn = true;
+    state.lottery.mode = result.gameType;
+    state.lottery.result = result;
+    state.lottery.gridActiveIndex = result.gameType === 'grid' ? result.prize.index : -1;
+    loadHomeData()
+      .then(() => {
+        if (state.route.name === 'home') {
+          maybeOpenHomePoster();
+          queueRender();
+        }
+      })
+      .catch(() => {});
+    queueRender();
+  }
+
+  function scheduleMerchantSearch() {
+    clearTimeout(merchantSearchTimer);
+    merchantSearchTimer = setTimeout(() => {
+      loadMerchants()
+        .then(queueRender)
+        .catch((error) => setToast(error.message || '商家搜索失败'));
+    }, 260);
+  }
+
+  function openMap(merchant) {
+    if (!merchant?.latitude || !merchant?.longitude) {
+      setToast('当前商家未配置地图位置');
+      return;
+    }
+
+    const query = new URLSearchParams({
+      marker: `coord:${merchant.latitude},${merchant.longitude};title:${merchant.name};addr:${merchant.address}`
+    });
+    window.open(`https://apis.map.qq.com/uri/v1/marker?${query.toString()}`, '_blank');
+  }
+
+  function copyText(text) {
+    if (!text) {
+      return;
+    }
+
+    navigator.clipboard?.writeText(text)
+      .then(() => setToast('已复制到剪贴板'))
+      .catch(() => setToast('复制失败，请手动复制'));
+  }
+
+  async function shareHomePoster() {
+    const poster = getSharePoster();
+    const shareUrl = `${window.location.origin}${window.location.pathname}#/home`;
+    const shareData = {
+      title: poster.title || '青春福袋',
+      text: poster.blessing || '邀请朋友一起打开青春福袋。',
+      url: shareUrl
+    };
+
+    if (navigator.share) {
+      await navigator.share(shareData);
+      state.homePoster.visible = false;
+      setToast('分享请求已发出');
+      return;
+    }
+
+    state.homePoster.visible = false;
+    copyText(shareUrl);
+    setToast('已复制分享链接');
+  }
+
+  function renderTopbar() {
+    const meta = getRouteMeta();
+    const isMockMode = state.session.mode === 'mock';
+    return `
+      <header class="topbar">
+        <div class="topbar-brand">
+          <div class="topbar-title">${escapeHtml(meta.title)}</div>
+          <div class="topbar-subtitle">${escapeHtml(meta.subtitle)}</div>
+        </div>
+        <div class="topbar-actions">
+          ${isMockMode ? `
+            <span class="test-badge">${escapeHtml('测试模式')}</span>
+            <button class="link-btn" data-action="switch-identity">换号测试</button>
+          ` : ''}
+        </div>
+      </header>
+    `;
+  }
+
+  function renderUnsupportedPage() {
+    return `
+      <section class="page-shell">
+        <div class="hero-card">
+          <span class="hero-kicker">H5 预览</span>
+          <div class="hero-title">请在微信小程序参与活动</div>
+          <p class="hero-desc">${escapeHtml(state.unsupportedMessage || '当前环境不开放 H5 参与，请使用微信小程序进入活动。')}</p>
+        </div>
+
+        <div class="glass-card info-card">
+          <div class="info-row">
+            <div class="info-label">当前入口</div>
+            <div class="info-value">浏览器 H5 仅用于本地预览和联调。</div>
+          </div>
+          <div class="info-row">
+            <div class="info-label">建议操作</div>
+            <div class="info-value">请使用微信小程序打开正式活动入口，领取福袋并参与抽奖。</div>
+          </div>
+        </div>
+      </section>
+    `;
+  }
+
+  function renderCountdown() {
+    return `
+      <div class="glass-card countdown-card">
+        <div class="section-head">
+          <div class="section-title">开袋倒计时</div>
+          <div class="section-subtitle">活动开始后即可进入九选一屏幕</div>
+        </div>
+        <div class="countdown-grid">
+          <div class="count-item">
+            <span class="count-value">${state.activity.countdown.days}</span>
+            <span class="count-label">天</span>
+          </div>
+          <div class="count-item">
+            <span class="count-value">${state.activity.countdown.hours}</span>
+            <span class="count-label">时</span>
+          </div>
+          <div class="count-item">
+            <span class="count-value">${state.activity.countdown.minutes}</span>
+            <span class="count-label">分</span>
+          </div>
+          <div class="count-item">
+            <span class="count-value">${state.activity.countdown.seconds}</span>
+            <span class="count-label">秒</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderLotteryControls() {
+    return `
+      <div class="glass-card mode-switch">
+        <div class="switch-track">
+          <button class="switch-item ${state.lottery.mode === 'wheel' ? 'active' : ''}" data-action="switch-lottery-mode" data-mode="wheel">大转盘</button>
+          <button class="switch-item ${state.lottery.mode === 'grid' ? 'active' : ''}" data-action="switch-lottery-mode" data-mode="grid">九宫格</button>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderLotteryBoard() {
+    const wheelItems = state.lottery.config.wheel || [];
+    const gridCells = getGridCells();
+
+    if (state.lottery.mode === 'wheel') {
+      return `
+        <div class="surface-card wheel-panel">
+          <div class="wheel-stage">
+            <div class="wheel-pointer"></div>
+            <div class="wheel-body" style="transform: rotate(${state.lottery.wheelRotation}deg); transition: transform ${state.lottery.wheelDuration}ms cubic-bezier(0.18, 0.9, 0.2, 1);">
+              ${wheelItems.map((item, index) => {
+                const angle = Math.round((360 / wheelItems.length) * index);
+                return `
+                  <div class="wheel-prize" style="transform: translate(-50%, -50%) rotate(${angle}deg) translateY(-124px) rotate(-${angle}deg); background:${escapeHtml(item.color)}; color:${escapeHtml(item.accent)};">
+                    <span class="wheel-prize-name">${escapeHtml(item.shortLabel)}</span>
+                    <span class="wheel-prize-meta">${escapeHtml(item.level)}</span>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+            <button class="primary-btn wheel-center" data-action="draw-lottery" ${state.lottery.drawing || state.lottery.hasDrawn || !state.luckyBag ? 'disabled' : ''}>
+              ${state.lottery.hasDrawn ? '已完成' : (state.lottery.drawing ? '抽取中' : (state.luckyBag ? '开始' : '待解锁'))}
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="surface-card grid-panel">
+        <div class="grid-board">
+          ${gridCells.map((item) => `
+            <div class="grid-cell ${item.prizeIndex === state.lottery.gridActiveIndex ? 'active' : ''} ${item.isCenter ? 'center' : ''}">
+              ${item.isCenter
+                ? `<button class="grid-center-btn" data-action="draw-lottery" ${state.lottery.drawing || state.lottery.hasDrawn || !state.luckyBag ? 'disabled' : ''}>${state.lottery.hasDrawn ? '已完成' : (state.lottery.drawing ? '抽取中' : (state.luckyBag ? '开始' : '待解锁'))}</button>`
+                : `<div class="grid-prize" style="background:${escapeHtml(item.color)}; color:${escapeHtml(item.accent)};">
+                    <span class="grid-prize-name">${escapeHtml(item.shortLabel)}</span>
+                    <span class="grid-prize-meta">${escapeHtml(item.level)}</span>
+                  </div>`
+              }
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  function renderLotteryResultCard(options = {}) {
+    const result = state.lottery.result;
+    const emptyText = options.emptyText || '选择你喜欢的玩法后开始抽奖，页面所示奖池就是你当前参与的奖池。';
+
+    if (!result) {
+      return `<div class="empty-panel">${emptyText}</div>`;
+    }
+
+    return `
+      <div class="glass-card delivery-card">
+        <div class="section-head">
+          <div class="section-title">抽奖结果</div>
+          <span class="status-chip active">${result.gameType === 'wheel' ? '大转盘' : '九宫格'}</span>
+        </div>
+        <div class="result-highlight" style="background:${escapeHtml(result.prize.color)}; color:${escapeHtml(result.prize.accent)};">
+          <span class="result-name">${escapeHtml(result.prize.name)}</span>
+          <span class="result-value">${escapeHtml(result.prize.value)}</span>
+          <div class="result-message">${escapeHtml(result.prize.posterMessage)}</div>
+        </div>
+        ${(options.actions || '').trim() ? `<div class="page-actions" style="margin-top: 14px;">${options.actions}</div>` : ''}
+      </div>
+    `;
+  }
+
+  function renderHomePage() {
+    const hasReceived = !!state.luckyBag;
+    const myRedpacket = state.luckyBag?.redPacket || null;
+    const myCoupons = (state.luckyBag?.coupons || []).map(normalizeCoupon);
+    const primaryText = hasReceived
+      ? (state.userStats.hasDrawnLottery ? '查看我的抽奖结果' : '继续查看祝福海报')
+      : '领取青春福袋';
+
+    return `
+      <section class="page-shell">
+        <div class="hero-card">
+          <span class="hero-kicker">${escapeHtml(state.activity.statusText)}</span>
+          <div class="hero-title">打开青春福袋<span class="accent">先选一个红包</span></div>
+          <p class="hero-desc">点击领取后进入九选一红包墙，任意打开一个红包，随机获得金额，生成祝福海报，再继续进入抽奖页面。</p>
+          <div class="hero-actions">
+            <button class="primary-btn" data-action="receive-entry" ${!state.activity.isActive ? 'disabled' : ''}>${escapeHtml(primaryText)}</button>
+            <button class="secondary-btn" data-route="/merchants">查看青年商家</button>
+          </div>
+          ${state.activity.countdown ? renderCountdown() : ''}
+        </div>
+
+        <div class="glass-card flow-card">
+          <div class="section-head">
+            <div class="section-title">三步完成体验</div>
+            <div class="section-subtitle">第一屏、祝福海报、抽奖页一条链路直达</div>
+          </div>
+          <div class="flow-list">
+            <div class="flow-item">
+              <div class="flow-index">01</div>
+              <div class="flow-body">
+                <div class="flow-title">九个红包任选其一</div>
+                <p class="flow-text">进入第一屏幕后直接看到九个红包，先选中，再开启。</p>
+              </div>
+            </div>
+            <div class="flow-item">
+              <div class="flow-index">02</div>
+              <div class="flow-body">
+                <div class="flow-title">随机金额 + 祝福海报</div>
+                <p class="flow-text">金额随机命中，页面同步生成祝福海报，展示红包当前发放状态。</p>
+              </div>
+            </div>
+            <div class="flow-item">
+              <div class="flow-index">03</div>
+              <div class="flow-body">
+                <div class="flow-title">继续进入抽奖页面</div>
+                <p class="flow-text">抽奖页可切换大转盘和九宫格，页面展示的就是当前实际奖池。</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="glass-card home-lottery-shell">
+          <div class="section-head">
+            <div class="section-title">首页抽奖区</div>
+            <div class="section-subtitle">${hasReceived ? '抽奖页已并入首页，可直接切换玩法并开始抽奖。' : '领取青春福袋后，这里会直接解锁抽奖页。'}</div>
+          </div>
+          ${hasReceived ? `
+            <div class="poster-quick-actions">
+              <button class="secondary-btn mini-btn" data-action="open-home-poster" data-type="random">随机弹出海报</button>
+              <button class="secondary-btn mini-btn" data-action="open-home-poster" data-type="share">分享海报</button>
+              <button class="secondary-btn mini-btn" data-route="/result">查看红包海报</button>
+            </div>
+          ` : ''}
+        </div>
+
+        ${hasReceived ? `
+          ${renderLotteryControls()}
+          ${renderLotteryBoard()}
+          ${renderLotteryResultCard({
+            emptyText: '福袋已到账，直接在首页选择玩法开始抽奖。',
+            actions: `
+              <button class="secondary-btn" data-action="open-home-poster" data-type="random">再弹一张随机海报</button>
+              <button class="secondary-btn" data-route="/result">返回查看祝福海报</button>
+            `
+          })}
+        ` : `
+          <div class="empty-panel">先领取青春福袋，首页会同步解锁抽奖区、红包海报和分享海报弹窗。</div>
+        `}
+
+        ${hasReceived ? `
+          <div class="glass-card welfare-card">
+            <div class="section-head">
+              <div class="section-title">我的当前权益</div>
+              <div class="section-subtitle">已领内容可以直接进入明细页</div>
+            </div>
+            <div class="list-stack">
+              <button class="list-card metric-row" data-route="/redpackets">
+                <div>
+                  <span class="metric-main">¥${money(myRedpacket?.amount)}</span>
+                  <div class="metric-caption">微信红包 ${Number(myRedpacket?.status) === 2 ? '已发放' : '发放中'}</div>
+                </div>
+                <span class="tiny-chip">查看红包</span>
+              </button>
+              <button class="list-card metric-row" data-route="/coupons">
+                <div>
+                  <span class="metric-main">${myCoupons.length}</span>
+                  <div class="metric-caption">张消费券已入账</div>
+                </div>
+                <span class="tiny-chip">查看权益</span>
+              </button>
+              <button class="list-card metric-row" data-route="/lottery">
+                <div>
+                  <span class="metric-main">${state.userStats.hasDrawnLottery ? '已抽奖' : '首页可抽奖'}</span>
+                  <div class="metric-caption">抽奖区已放到首页</div>
+                </div>
+                <span class="tiny-chip">查看独立页</span>
+              </button>
+            </div>
+          </div>
+        ` : ''}
+
+        <div>
+          <div class="section-head">
+            <div class="section-title">活动规则</div>
+            <div class="section-subtitle">发放和使用说明</div>
+          </div>
+          <div class="list-stack">
+            ${(content.activityRules || []).map((item, index) => `
+              <div class="list-card"><div class="rule-text">${index + 1}. ${escapeHtml(item)}</div></div>
+            `).join('')}
+          </div>
+        </div>
+
+        <div class="quick-grid">
+          <button class="quick-card" data-route="/policies">
+            <span class="quick-icon">策</span>
+            <div class="quick-title">政策清单</div>
+            <p class="quick-text">快速查看就业、安居和培训支持</p>
+          </button>
+          <button class="quick-card" data-route="/profile">
+            <span class="quick-icon">我</span>
+            <div class="quick-title">个人中心</div>
+            <p class="quick-text">查看红包、消费券和抽奖状态</p>
+          </button>
+        </div>
+      </section>
+    `;
+  }
+
+  function renderReceivePage() {
+    return `
+      <section class="page-shell">
+        <div class="hero-card">
+          <span class="hero-kicker">第一屏 · 九选一</span>
+          <div class="hero-title">先挑一个你最想拆开的红包</div>
+          <p class="hero-desc">九个红包全部可选，选定后随机命中金额，并立刻生成你的青春祝福海报。</p>
+        </div>
+
+        <div class="bag-grid">
+          ${bagOptions.map((item) => `
+            <button class="bag-card ${state.receive.selectedSlot === item.id ? 'active' : ''}" data-action="select-bag" data-index="${item.id}">
+              <span class="bag-knot"></span>
+              <span class="bag-icon">福</span>
+              <span class="bag-name">${escapeHtml(item.label)}</span>
+              <span class="bag-tag">${escapeHtml(item.tag)}</span>
+              ${state.receive.selectedSlot === item.id ? '<span class="bag-selected">已选中</span>' : ''}
+            </button>
+          `).join('')}
+        </div>
+
+        <div class="glass-card opening-card">
+          <div class="section-head">
+            <div class="section-title">开袋前确认</div>
+            <div class="section-subtitle">手机号用于红包状态展示和消费券核销校验</div>
+          </div>
+          <div class="tag-row">
+            <span class="tag">${state.session.userInfo?.phone ? '手机号已绑定' : '首次开启需绑定手机号'}</span>
+            <span class="tag">${state.receive.selectedSlot !== null ? `已选择红包 ${state.receive.selectedSlot + 1}` : '请先选中一个红包'}</span>
+          </div>
+          <div class="privacy-row">
+            <button class="privacy-check ${state.receive.agreePrivacy ? 'checked' : ''}" data-action="toggle-privacy">${state.receive.agreePrivacy ? '✓' : ''}</button>
+            <div class="privacy-text">我已阅读并同意隐私说明</div>
+            <button class="privacy-link" data-route="/policy/privacy">查看内容</button>
+          </div>
+          <button class="primary-btn" data-action="open-bag" ${state.receive.submitting ? 'disabled' : ''}>${state.receive.submitting ? '正在开启福袋...' : '立即拆开这个红包'}</button>
+        </div>
+      </section>
+    `;
+  }
+
+  function renderResultPage() {
+    if (!state.luckyBag) {
+      return `<section class="page-shell"><div class="empty-panel">还没有福袋结果，请先返回首页领取青春福袋。</div></section>`;
+    }
+
+    const delivery = state.luckyBag.delivery || {};
+    const poster = state.luckyBag.poster || {};
+    const coupons = (state.luckyBag.coupons || []).map(normalizeCoupon);
+
+    return `
+      <section class="page-shell">
+        <div class="poster-card ${state.showPosterGlow ? 'float-pulse' : ''}">
+          <div class="poster-headline">祝福海报已生成</div>
+          <div class="poster-title">${escapeHtml(poster.title || '青春福袋限定祝福')}</div>
+          <div class="poster-amount-row">
+            <span class="poster-currency">¥</span>
+            <span class="poster-amount">${money(poster.amount)}</span>
+          </div>
+          <div class="poster-blessing">${escapeHtml(poster.blessing || '')}</div>
+          <div class="poster-footer">${escapeHtml(poster.footer || '')}</div>
+        </div>
+
+        <div class="glass-card delivery-card">
+          <div class="section-head">
+            <div class="section-title">红包发放状态</div>
+            <span class="status-chip ${escapeHtml(delivery.status || 'pending')}">${escapeHtml(delivery.title || '发放中')}</span>
+          </div>
+          <p class="delivery-desc">${escapeHtml(delivery.description || '')}</p>
+          <div class="info-grid">
+            <div class="info-item">
+              <span class="info-label">发放金额</span>
+              <span class="info-value">¥${money(state.luckyBag.redPacket?.amount)}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">发放通道</span>
+              <span class="info-value">${escapeHtml(delivery.channel || '')}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">拆袋结果</span>
+              <span class="info-value">${escapeHtml(poster.headline || '青春福袋已开启')}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="glass-card coupon-stage">
+          <div class="section-head">
+            <div class="section-title">同步入账权益</div>
+            <div class="section-subtitle">消费券和政策福利已一起发放</div>
+          </div>
+          ${coupons.length ? `
+            <div class="list-stack">
+              ${coupons.map((item) => `
+                <div class="list-card coupon-card">
+                  <div class="coupon-left">
+                    <span class="coupon-money">¥${money(item.amount)}</span>
+                    <span class="coupon-min">满 ${escapeHtml(item.minSpend)} 可用</span>
+                  </div>
+                  <div class="coupon-right">
+                    <span class="coupon-name">${escapeHtml(item.name)}</span>
+                    <span class="coupon-date">${escapeHtml(item.validTo || '')} 前有效</span>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          ` : '<div class="empty-panel">本次没有叠加消费券，可直接进入政策福利页查看更多内容。</div>'}
+        </div>
+
+        <div class="page-actions">
+          <button class="primary-btn" data-route="/lottery">进入抽奖页面</button>
+          <button class="secondary-btn" data-route="/coupons">查看消费券</button>
+          <button class="secondary-btn" data-route="/redpackets">查看红包记录</button>
+          <button class="secondary-btn" data-route="/policies">查看政策福利</button>
+          <button class="secondary-btn" data-route="/home">返回首页</button>
+        </div>
+      </section>
+    `;
+  }
+
+  function renderLotteryPage() {
+    return `
+      <section class="page-shell">
+        <div class="hero-card">
+          <span class="hero-kicker">抽奖页面</span>
+          <div class="hero-title">大转盘和九宫格都在这里</div>
+          <p class="hero-desc">页面显示的奖池就是你实际参与的奖池，玩法切换直接可见，不做隐藏层。</p>
+        </div>
+        ${renderLotteryControls()}
+        ${renderLotteryBoard()}
+        ${renderLotteryResultCard({
+          actions: '<button class="secondary-btn" data-route="/result">返回查看祝福海报</button>'
+        })}
+      </section>
+    `;
+  }
+
+  function renderCouponsPage() {
+    const coupons = getCurrentCoupons();
+    return `
+      <section class="page-shell">
+        <div class="hero-card">
+          <span class="hero-kicker">我的权益</span>
+          <div class="hero-title">消费券与福利卡包</div>
+          <p class="hero-desc">福袋到账的消费券会在这里统一展示，未使用、已使用和已过期状态一眼可见。</p>
+        </div>
+
+        <div class="glass-card mode-switch">
+          <div class="tabs">
+            <button class="tab-item ${state.coupons.currentTab === '1' ? 'active' : ''}" data-action="switch-coupon-tab" data-tab="1">未使用 ${state.coupons.pool[1].length}</button>
+            <button class="tab-item ${state.coupons.currentTab === '2' ? 'active' : ''}" data-action="switch-coupon-tab" data-tab="2">已使用 ${state.coupons.pool[2].length}</button>
+            <button class="tab-item ${state.coupons.currentTab === '3' ? 'active' : ''}" data-action="switch-coupon-tab" data-tab="3">已过期 ${state.coupons.pool[3].length}</button>
+          </div>
+        </div>
+
+        ${coupons.length ? `
+          <div class="list-stack">
+            ${coupons.map((item) => `
+              <button class="surface-card coupon-card" data-route="/coupon/${item.id}">
+                <div class="coupon-left">
+                  <span class="coupon-money">¥${money(item.amount)}</span>
+                  <span class="coupon-min">满 ${escapeHtml(item.minSpend)} 可用</span>
+                </div>
+                <div class="coupon-right">
+                  <span class="coupon-name">${escapeHtml(item.name)}</span>
+                  <span class="coupon-date">${escapeHtml(item.validFrom || '')} - ${escapeHtml(item.validTo || '')}</span>
+                  <span class="tiny-chip">${state.coupons.currentTab === '1' ? '待使用' : (state.coupons.currentTab === '2' ? '已使用' : '已过期')}</span>
+                </div>
+              </button>
+            `).join('')}
+          </div>
+        ` : '<div class="empty-panel">当前分类下暂无消费券，领取福袋后再回来看看。</div>'}
+      </section>
+    `;
+  }
+
+  function renderCouponDetailPage() {
+    const detail = state.coupons.detail;
+    const coupon = normalizeCoupon({
+      id: detail?.coupon?.id || state.route.params.id,
+      code: detail?.code || '',
+      status: detail?.status,
+      coupon: detail?.coupon || {}
+    });
+
+    if (!detail?.coupon) {
+      return `<section class="page-shell"><div class="empty-panel">消费券详情加载失败，请返回权益页重试。</div></section>`;
+    }
+
+    return `
+      <section class="page-shell">
+        <div class="surface-card coupon-stage">
+          <div class="detail-top">
+            <div>
+              <span class="hero-kicker">消费券详情</span>
+              <div class="merchant-detail-title" style="margin-top: 12px;">${escapeHtml(coupon.name)}</div>
+              <div class="coupon-money" style="margin-top: 12px;">¥${money(coupon.amount)}</div>
+              <div class="detail-meta">满 ${escapeHtml(coupon.minSpend)} 可用 · ${escapeHtml(coupon.validFrom || '')} 至 ${escapeHtml(coupon.validTo || '')}</div>
+            </div>
+          </div>
+
+          ${Number(detail.status) === 1 ? `
+            <div class="code-panel">
+              <img class="qrcode-image" src="${escapeHtml(detail.qrcodeUrl)}" alt="核销二维码">
+              <span class="verify-code">${escapeHtml(detail.code)}</span>
+              <div class="verify-tip">到店后向商家出示二维码或核销码即可使用。</div>
+              <div class="page-actions" style="margin-top: 14px;">
+                <button class="secondary-btn" data-action="copy-code" data-code="${escapeHtml(detail.code)}">复制核销码</button>
+              </div>
+            </div>
+          ` : `<div class="empty-panel">${Number(detail.status) === 2 ? '该消费券已使用' : '该消费券已过期'}</div>`}
+        </div>
+
+        <div class="glass-card detail-info">
+          <div class="section-head">
+            <div class="section-title">使用说明</div>
+            <div class="section-subtitle">到店出示二维码或核销码即可使用</div>
+          </div>
+          <p class="detail-copy">${escapeHtml(coupon.description || '请在有效期内到支持商家核销使用。')}</p>
+        </div>
+      </section>
+    `;
+  }
+
+  function renderMerchantsPage() {
+    return `
+      <section class="page-shell">
+        <div class="hero-card">
+          <span class="hero-kicker">青年商家</span>
+          <div class="hero-title">附近可用商家</div>
+          <p class="hero-desc">消费券优先推荐支持青年活动场景的商家，定位成功时会按距离排序。</p>
+        </div>
+
+        <div class="glass-card search-card">
+          <input class="search-input" data-model="merchants.keyword" value="${escapeHtml(state.merchants.keyword)}" placeholder="搜索商家名称">
+          <div class="category-row" style="margin-top: 12px;">
+            ${(content.merchantCategories || []).map((item) => `
+              <button class="category-chip ${state.merchants.currentCategory === item.id ? 'active' : ''}" data-action="switch-merchant-category" data-category="${escapeHtml(item.id)}">${escapeHtml(item.name)}</button>
+            `).join('')}
+          </div>
+        </div>
+
+        ${state.merchants.list.length ? `
+          <div class="list-stack">
+            ${state.merchants.list.map((item) => `
+              <button class="surface-card merchant-card" data-route="/merchant/${item.id}">
+                <div class="merchant-card-top">
+                  <div>
+                    <div class="merchant-name">${escapeHtml(item.name)}</div>
+                    <div class="merchant-address">${escapeHtml(item.address)}</div>
+                  </div>
+                  <span class="tiny-chip">${escapeHtml(item.distanceText || item.distance || '推荐商家')}</span>
+                </div>
+                <div class="tag-row">
+                  <span class="tag">${escapeHtml(item.category)}</span>
+                  <span class="tag">${escapeHtml(item.couponInfo || '支持消费券')}</span>
+                </div>
+              </button>
+            `).join('')}
+          </div>
+        ` : '<div class="empty-panel">没有匹配到商家，试试切换分类或稍后再看。</div>'}
+      </section>
+    `;
+  }
+
+  function renderMerchantDetailPage() {
+    const merchant = state.merchants.detail;
+    if (!merchant) {
+      return `<section class="page-shell"><div class="empty-panel">商家详情加载失败，请返回列表重试。</div></section>`;
+    }
+
+    return `
+      <section class="page-shell">
+        <div class="surface-card coupon-stage">
+          <span class="hero-kicker">${escapeHtml(merchant.category || '青年商家')}</span>
+          <div class="merchant-detail-title" style="margin-top: 14px;">${escapeHtml(merchant.name)}</div>
+          <p class="merchant-detail-desc">${escapeHtml(merchant.description || merchant.address)}</p>
+        </div>
+
+        <div class="glass-card info-card">
+          <div class="info-row">
+            <div class="info-label">营业时间</div>
+            <div class="info-value">${escapeHtml(merchant.businessHours || '以门店公示为准')}</div>
+          </div>
+          <div class="info-row">
+            <div class="info-label">联系人</div>
+            <div class="info-value">${escapeHtml(merchant.contactName || '门店客服')}</div>
+          </div>
+          <div class="info-row">
+            <div class="info-label">详细地址</div>
+            <div class="info-value">${escapeHtml(merchant.address || '')}</div>
+          </div>
+        </div>
+
+        <div class="page-actions">
+          <button class="primary-btn" data-action="open-map">导航到这里</button>
+          <button class="secondary-btn" data-action="call-merchant">联系商家</button>
+        </div>
+      </section>
+    `;
+  }
+
+  function renderPoliciesPage() {
+    return `
+      <section class="page-shell">
+        <div class="hero-card">
+          <span class="hero-kicker">政策福利</span>
+          <div class="hero-title">青年政策一页通览</div>
+          <p class="hero-desc">就业、培训、安居和补贴政策统一收口，适合拆袋后继续深入查看。</p>
+        </div>
+
+        <div class="glass-card mode-switch">
+          <div class="policy-category-row">
+            ${(content.policyCategories || []).map((item) => `
+              <button class="policy-category ${state.policies.currentCategory === item.id ? 'active' : ''}" data-action="switch-policy-category" data-category="${escapeHtml(item.id)}">${escapeHtml(item.name)}</button>
+            `).join('')}
+          </div>
+        </div>
+
+        <div class="list-stack">
+          ${state.policies.displayList.map((item) => `
+            <button class="surface-card policy-card" data-route="/policy/${item.id}">
+              <div class="policy-card-top">
+                <div class="quick-icon">${escapeHtml(item.icon)}</div>
+                <div style="flex: 1;">
+                  <div class="policy-name">${escapeHtml(item.title)}</div>
+                  <p class="policy-summary">${escapeHtml(item.summary)}</p>
+                </div>
+              </div>
+              <div class="tag-row">
+                ${(item.tags || []).map((tag) => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}
+              </div>
+            </button>
+          `).join('')}
+        </div>
+      </section>
+    `;
+  }
+
+  function renderPolicyDetailPage() {
+    const policy = state.policies.detail;
+    if (!policy) {
+      return `<section class="page-shell"><div class="empty-panel">政策详情加载失败，请返回列表重试。</div></section>`;
+    }
+
+    return `
+      <section class="page-shell">
+        <div class="surface-card coupon-stage">
+          <span class="hero-kicker">${escapeHtml(policy.tags?.[0] || '政策')}</span>
+          <div class="policy-detail-title" style="margin-top: 14px;">${escapeHtml(policy.title)}</div>
+          <p class="policy-summary">${escapeHtml(policy.summary)}</p>
+          <div class="tag-row">
+            ${(policy.tags || []).map((tag) => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}
+          </div>
+        </div>
+
+        <div class="list-stack">
+          ${(policy.sections || []).map((section) => `
+            <div class="glass-card section-card">
+              <div class="section-title" style="font-size:18px;">${escapeHtml(section.title)}</div>
+              <div class="section-copy" style="margin-top: 10px;">${escapeHtml(section.content)}</div>
+            </div>
+          `).join('')}
+        </div>
+      </section>
+    `;
+  }
+
+  function renderRedpacketsPage() {
+    return `
+      <section class="page-shell">
+        <div class="hero-card">
+          <span class="hero-kicker">红包记录</span>
+          <div class="hero-title">我的青春红包</div>
+          <p class="hero-desc">共 ${state.redpackets.total} 条发放记录，当前状态会同步红包发放进度。</p>
+        </div>
+
+        ${state.redpackets.list.length ? `
+          <div class="list-stack">
+            ${state.redpackets.list.map((item) => `
+              <div class="surface-card redpacket-card">
+                <div class="redpacket-main">
+                  <span class="redpacket-money">¥${money(item.amount)}</span>
+                  <span class="status-chip ${getRedpacketStatusClass(item.status)}">${getRedpacketStatusLabel(item.status)}</span>
+                </div>
+                <span class="redpacket-blessing">${escapeHtml(item.blessing || '')}</span>
+                <span class="redpacket-time">领取时间：${escapeHtml(item.createTime || formatDateTime(item.receivedAt || ''))}</span>
+              </div>
+            `).join('')}
+          </div>
+        ` : '<div class="empty-panel">还没有红包记录，先回首页领取青春福袋。</div>'}
+
+        <div class="page-actions">
+          <button class="secondary-btn" data-route="/lottery">进入抽奖页</button>
+        </div>
+      </section>
+    `;
+  }
+
+  function renderProfilePage() {
+    const switchIdentityButton = state.session.mode === 'mock'
+      ? '<button class="secondary-btn mini-btn" data-action="switch-identity">换号测试</button>'
+      : '';
+
+    return `
+      <section class="page-shell">
+        <div class="surface-card coupon-stage">
+          <div class="profile-top">
+            <div class="avatar">${escapeHtml(getAvatarText())}</div>
+            <div class="profile-main">
+              <div class="profile-name">${escapeHtml(state.session.userInfo?.nickname || '青春用户')}</div>
+              <span class="profile-phone">${escapeHtml(state.session.userInfo?.phone || '待绑定手机号')}</span>
+            </div>
+            ${switchIdentityButton}
+          </div>
+
+          <div class="summary-grid" style="margin-top: 18px;">
+            <button class="summary-card" data-route="/redpackets">
+              <span class="summary-value">${state.userStats.redpacketCount}</span>
+              <span class="summary-label">红包记录</span>
+            </button>
+            <button class="summary-card" data-route="/coupons">
+              <span class="summary-value">${state.userStats.couponCount}</span>
+              <span class="summary-label">消费券</span>
+            </button>
+            <button class="summary-card" data-route="/lottery">
+              <span class="summary-value">${escapeHtml(state.userStats.totalAmount)}</span>
+              <span class="summary-label">累计金额</span>
+            </button>
+            <button class="summary-card" data-route="/lottery">
+              <span class="summary-value">${state.userStats.hasDrawnLottery ? '已抽奖' : '待抽奖'}</span>
+              <span class="summary-label">抽奖状态</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="list-stack">
+          <button class="surface-card menu-card" data-route="/lottery">
+            <div class="menu-title">进入抽奖页面</div>
+            <p class="menu-desc">查看大转盘、九宫格和你的抽奖结果。</p>
+          </button>
+          <button class="surface-card menu-card" data-route="/merchants">
+            <div class="menu-title">附近青年商家</div>
+            <p class="menu-desc">找到支持消费券的商家和青年活动场景。</p>
+          </button>
+          <button class="surface-card menu-card" data-route="/policies">
+            <div class="menu-title">政策福利清单</div>
+            <p class="menu-desc">继续查看就业、培训、安居和补贴政策。</p>
+          </button>
+        </div>
+
+        <div class="glass-card rules-card">
+          <div class="section-head">
+            <div class="section-title">使用提醒</div>
+            <div class="section-subtitle">领取、发放和核销说明</div>
+          </div>
+          <div class="list-stack">
+            ${(content.activityRules || []).map((item, index) => `
+              <div class="list-card"><div class="rule-text">${index + 1}. ${escapeHtml(item)}</div></div>
+            `).join('')}
+          </div>
+          <div class="page-actions" style="margin-top: 14px;">
+            <button class="secondary-btn" data-action="contact-service">联系客服 ${escapeHtml(content.serviceInfo?.phone || '')}</button>
+          </div>
+        </div>
+      </section>
+    `;
+  }
+
+  function renderTabbar() {
+    const active = state.route.name;
+    return `
+      <nav class="tabbar">
+        <button class="tab-link ${active === 'home' ? 'active' : ''}" data-route="/home">首页</button>
+        <button class="tab-link ${active === 'coupons' || active === 'coupon-detail' ? 'active' : ''}" data-route="/coupons">权益</button>
+        <button class="tab-link ${active === 'profile' ? 'active' : ''}" data-route="/profile">我的</button>
+      </nav>
+    `;
+  }
+
+  function renderLoading() {
+    if (!state.bootstrapping && !state.routeLoading) {
+      return '';
+    }
+
+    return `
+      <div class="loading-overlay">
+        <div class="loading-card">
+          <span class="spinner"></span>
+          <span>${state.bootstrapping ? '正在进入 H5 客户端...' : '页面加载中...'}</span>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderToast() {
+    if (!state.toast) {
+      return '';
+    }
+
+    return `<div class="toast">${escapeHtml(state.toast)}</div>`;
+  }
+
+  function renderPhoneModal() {
+    return `
+      <div class="modal-backdrop">
+        <div class="modal-panel">
+          <div class="modal-title">绑定手机号后即可继续</div>
+          <p class="modal-copy">请输入手机号以继续领取福袋，并用于后续权益查询与核销校验。</p>
+          <input class="text-input" data-model="receive.phone" value="${escapeHtml(state.receive.phone)}" maxlength="11" placeholder="请输入手机号">
+          <div class="modal-actions">
+            <button class="primary-btn" data-action="bind-phone">绑定手机号并继续</button>
+            <button class="secondary-btn" data-action="close-phone-modal">稍后再说</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderHomePosterModal() {
+    const poster = getActiveHomePoster();
+    if (!state.homePoster.visible || !poster) {
+      return '';
+    }
+
+    const isSharePoster = state.homePoster.type === 'share';
+    const primaryAction = isSharePoster
+      ? '<button class="primary-btn" data-action="share-home-poster">立即分享海报</button>'
+      : '<button class="primary-btn" data-route="/redpackets">查看红包记录</button>';
+
+    return `
+      <div class="modal-backdrop">
+        <div class="modal-panel poster-modal-panel">
+          <div class="poster-card poster-modal-card">
+            <div class="poster-headline">${escapeHtml(poster.headline || '海报已生成')}</div>
+            <div class="poster-title">${escapeHtml(poster.title || '青春福袋')}</div>
+            <div class="poster-amount-row">
+              <span class="poster-currency">¥</span>
+              <span class="poster-amount">${money(poster.amount)}</span>
+            </div>
+            <div class="poster-blessing">${escapeHtml(poster.blessing || '')}</div>
+            <div class="poster-footer">${escapeHtml(poster.footer || '')}</div>
+          </div>
+          <div class="modal-actions poster-modal-actions">
+            ${primaryAction}
+            <div class="poster-quick-actions">
+              <button class="secondary-btn mini-btn" data-action="open-home-poster" data-type="random">随机换一张</button>
+              <button class="secondary-btn mini-btn" data-action="open-home-poster" data-type="${isSharePoster ? 'redpacket' : 'share'}">${isSharePoster ? '切到红包海报' : '切到分享海报'}</button>
+            </div>
+            <button class="secondary-btn" data-action="close-home-poster">收起海报</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderPage() {
+    if (state.unsupportedMessage) {
+      return renderUnsupportedPage();
+    }
+
+    switch (state.route.name) {
+      case 'home':
+        return renderHomePage();
+      case 'receive':
+        return renderReceivePage();
+      case 'result':
+        return renderResultPage();
+      case 'lottery':
+        return renderLotteryPage();
+      case 'coupons':
+        return renderCouponsPage();
+      case 'coupon-detail':
+        return renderCouponDetailPage();
+      case 'merchants':
+        return renderMerchantsPage();
+      case 'merchant-detail':
+        return renderMerchantDetailPage();
+      case 'policies':
+        return renderPoliciesPage();
+      case 'policy-detail':
+        return renderPolicyDetailPage();
+      case 'redpackets':
+        return renderRedpacketsPage();
+      case 'profile':
+        return renderProfilePage();
+      default:
+        return renderHomePage();
+    }
+  }
+
+  function render() {
+    root.innerHTML = `
+      <div class="phone-frame">
+        ${renderTopbar()}
+        ${renderPage()}
+      </div>
+      ${renderTabbar()}
+      ${state.receive.showPhoneSheet ? renderPhoneModal() : ''}
+      ${renderHomePosterModal()}
+      ${renderToast()}
+      ${renderLoading()}
+    `;
+  }
+
+  async function handleAction(action, target) {
+    switch (action) {
+      case 'switch-identity':
+        await switchIdentity();
+        break;
+      case 'receive-entry':
+        await onReceiveEntry();
+        break;
+      case 'select-bag':
+        state.receive.selectedSlot = Number(target.dataset.index);
+        queueRender();
+        break;
+      case 'toggle-privacy':
+        state.receive.agreePrivacy = !state.receive.agreePrivacy;
+        queueRender();
+        break;
+      case 'open-bag':
+        await onOpenBag();
+        break;
+      case 'bind-phone':
+        await bindPhoneAndContinue();
+        break;
+      case 'close-phone-modal':
+        state.receive.showPhoneSheet = false;
+        queueRender();
+        break;
+      case 'open-home-poster':
+        openHomePoster(target.dataset.type || 'random');
+        queueRender();
+        break;
+      case 'close-home-poster':
+        state.homePoster.visible = false;
+        queueRender();
+        break;
+      case 'share-home-poster':
+        await shareHomePoster();
+        break;
+      case 'switch-lottery-mode': {
+        const mode = target.dataset.mode;
+        if (state.lottery.drawing) {
+          return;
+        }
+
+        if (state.lottery.hasDrawn && state.lottery.result?.gameType !== mode) {
+          setToast('你已经按当前玩法完成抽奖');
+          return;
+        }
+
+        state.lottery.mode = mode;
+        queueRender();
+        break;
+      }
+      case 'draw-lottery':
+        await drawLottery();
+        break;
+      case 'switch-coupon-tab':
+        state.coupons.currentTab = target.dataset.tab;
+        queueRender();
+        break;
+      case 'switch-merchant-category':
+        state.merchants.currentCategory = target.dataset.category || '';
+        await loadMerchants();
+        queueRender();
+        break;
+      case 'switch-policy-category':
+        setPolicyCategory(target.dataset.category || '');
+        queueRender();
+        break;
+      case 'copy-code':
+        copyText(target.dataset.code);
+        break;
+      case 'call-merchant':
+        if (state.merchants.detail?.contactPhone) {
+          window.location.href = `tel:${state.merchants.detail.contactPhone}`;
+        } else {
+          setToast('暂无联系电话');
+        }
+        break;
+      case 'open-map':
+        openMap(state.merchants.detail);
+        break;
+      case 'contact-service':
+        if (content.serviceInfo?.phone) {
+          window.location.href = `tel:${content.serviceInfo.phone}`;
+        }
+        break;
+      default:
+        break;
+    }
+  }
+
+  document.addEventListener('click', (event) => {
+    const target = event.target.closest('[data-route], [data-action]');
+    if (!target) {
+      return;
+    }
+
+    event.preventDefault();
+    if (target.dataset.route) {
+      navigate(target.dataset.route);
+      return;
+    }
+
+    handleAction(target.dataset.action, target).catch((error) => {
+      setToast(error.message || '操作失败');
+    });
+  });
+
+  document.addEventListener('input', (event) => {
+    const target = event.target;
+    const model = target.dataset.model;
+    if (!model) {
+      return;
+    }
+
+    if (model === 'receive.phone') {
+      state.receive.phone = target.value;
+    }
+
+    if (model === 'merchants.keyword') {
+      state.merchants.keyword = target.value;
+      scheduleMerchantSearch();
+    }
+  });
+
+  window.addEventListener('hashchange', () => {
+    prepareRoute().catch((error) => {
+      setToast(error.message || '页面切换失败');
+    });
+  });
+
+  async function bootstrap() {
+    try {
+      if (!window.location.hash) {
+        navigate('/home');
+      }
+
+      await ensureSession();
+      await loadUserInfo(true);
+      await prepareRoute();
+    } catch (error) {
+      if (!state.unsupportedMessage) {
+        setToast(error.message || 'H5 客户端初始化失败');
+      }
+    } finally {
+      state.bootstrapping = false;
+      queueRender();
+    }
+  }
+
+  render();
+  bootstrap();
+})();

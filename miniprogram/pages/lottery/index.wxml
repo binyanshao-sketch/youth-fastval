@@ -1,0 +1,68 @@
+<view class="page-shell lottery-page">
+  <view class="lottery-hero surface-card">
+    <text class="hero-kicker lottery-kicker">&#24403;&#21069;&#21551;&#29992;&#29609;&#27861;</text>
+    <text class="lottery-title">{{activeModeLabel}}&#22870;&#27744;&#24050;&#30001;&#21518;&#21488;&#38145;&#23450;</text>
+    <text class="lottery-desc">{{result && result.gameType !== activeMode ? '\u4f60\u7684\u4e2d\u5956\u8bb0\u5f55\u6765\u81ea' + (result.gameType === 'grid' ? '\u4e5d\u5bab\u683c' : '\u5927\u8f6c\u76d8') + '\uff0c\u5f53\u524d\u6d3b\u52a8\u5df2\u5207\u6362\u4e3a' + activeModeLabel + '\u3002' : '\u5ba2\u6237\u7aef\u4ec5\u5c55\u793a\u540e\u53f0\u5f53\u524d\u542f\u7528\u7684' + activeModeLabel + '\uff0c\u4e0d\u518d\u5141\u8bb8\u9875\u9762\u672c\u5730\u5207\u6362\u73a9\u6cd5\u3002'}}
+    </text>
+  </view>
+
+  <view class="glass-card mode-switch-v3">
+    <view class="section-head">
+      <text class="section-title small">&#24403;&#21069;&#21551;&#29992;&#29609;&#27861;</text>
+      <text class="status-chip active">{{activeModeLabel}}</text>
+    </view>
+  </view>
+
+  <view wx:if="{{mode === 'wheel'}}" class="wheel-panel surface-card">
+    <view class="wheel-stage">
+      <view class="wheel-pointer wheel-pointer-v3"></view>
+      <view
+        class="wheel-body ring wheel-body-v3"
+        style="transform: rotate({{wheelRotation}}deg); transition: transform {{wheelDuration}}ms cubic-bezier(0.18, 0.9, 0.2, 1);"
+      >
+        <view class="wheel-prize" wx:for="{{wheelItems}}" wx:key="key" style="{{item.style}}">
+          <text class="wheel-prize-name">{{item.shortLabel}}</text>
+          <text class="wheel-prize-meta">{{item.level}}</text>
+        </view>
+      </view>
+      <button class="wheel-center primary-btn" bindtap="onDraw" disabled="{{drawing || hasDrawn}}">
+        {{hasDrawn ? '已完成' : (drawing ? '抽取中' : '开始抽奖')}}
+      </button>
+    </view>
+  </view>
+
+  <view wx:if="{{mode === 'grid'}}" class="grid-panel surface-card">
+    <view class="grid-board">
+      <view
+        class="grid-cell {{item.prizeIndex === gridActiveIndex ? 'active' : ''}} {{item.isCenter ? 'center' : ''}}"
+        wx:for="{{gridCells}}"
+        wx:key="index"
+      >
+        <button wx:if="{{item.isCenter}}" class="grid-center-btn" bindtap="onDraw" disabled="{{drawing || hasDrawn}}">
+          {{hasDrawn ? '已完成' : (drawing ? '抽取中' : '开始抽奖')}}
+        </button>
+        <view wx:else class="grid-prize" style="background: {{item.color}}; color: {{item.accent}};">
+          <text class="grid-prize-name">{{item.shortLabel}}</text>
+          <text class="grid-prize-meta">{{item.level}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{result}}" class="glass-card result-card">
+    <view class="section-head">
+      <text class="section-title">抽奖结果</text>
+      <text class="status-chip active">{{result.gameType === 'wheel' ? '大转盘' : '九宫格'}}</text>
+    </view>
+    <view class="result-highlight" style="background: {{result.prize.color}}; color: {{result.prize.accent}};">
+      <text class="result-name">{{result.prize.name}}</text>
+      <text class="result-value">{{result.prize.value}}</text>
+      <text class="result-message">{{result.prize.posterMessage}}</text>
+    </view>
+    <button class="secondary-btn" bindtap="goToPoster">返回查看荣誉卡片</button>
+  </view>
+
+  <view wx:if="{{!result && !loading}}" class="empty-panel">
+    {{'\u5f53\u524d\u62bd\u5956\u533a\u4ec5\u5c55\u793a\u540e\u53f0\u542f\u7528\u7684' + activeModeLabel + '\uff0c\u9875\u9762\u6240\u793a\u5956\u6c60\u5c31\u662f\u4f60\u5b9e\u9645\u53c2\u4e0e\u7684\u5956\u6c60\u3002'}}
+  </view>
+</view>

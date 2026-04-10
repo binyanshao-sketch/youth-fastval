@@ -1,0 +1,91 @@
+.policy-page {
+  display: flex;
+  flex-direction: column;
+  gap: 22rpx;
+}
+
+.policy-hero,
+.policy-categories {
+  padding: 28rpx;
+}
+
+.policy-kicker {
+  background: rgba(214, 74, 33, 0.12);
+  color: #c04f21;
+}
+
+.policy-title {
+  display: block;
+  margin-top: 18rpx;
+  font-size: 46rpx;
+  font-weight: 800;
+  color: #2f231d;
+}
+
+.policy-desc {
+  display: block;
+  margin-top: 10rpx;
+  font-size: 24rpx;
+  line-height: 1.8;
+  color: #8d6b59;
+}
+
+.policy-category-row {
+  display: inline-flex;
+  gap: 12rpx;
+}
+
+.policy-category {
+  padding: 14rpx 22rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.58);
+  color: #8d6b59;
+  font-size: 24rpx;
+  font-weight: 700;
+}
+
+.policy-category.active {
+  background: linear-gradient(135deg, #d84b20 0%, #f6a332 100%);
+  color: #fff;
+}
+
+.policy-card {
+  padding: 24rpx;
+}
+
+.policy-card-top {
+  display: flex;
+  gap: 18rpx;
+}
+
+.policy-icon {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 22rpx;
+  background: rgba(214, 74, 33, 0.08);
+  color: #c84d20;
+  font-size: 30rpx;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.policy-main {
+  flex: 1;
+}
+
+.policy-name {
+  display: block;
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #2f231d;
+}
+
+.policy-summary {
+  display: block;
+  margin-top: 10rpx;
+  font-size: 24rpx;
+  line-height: 1.8;
+  color: #8d6b59;
+}

@@ -1,0 +1,42 @@
+<view class="page-shell policy-page">
+  <view class="surface-card policy-hero">
+    <text class="hero-kicker policy-kicker">政策福利</text>
+    <text class="policy-title">青年政策一页通览</text>
+    <text class="policy-desc">就业、培训、安居和补贴政策统一收口，适合拆袋后继续深入查看。</text>
+  </view>
+
+  <scroll-view class="policy-categories glass-card" scroll-x>
+    <view class="policy-category-row">
+      <view
+        class="policy-category {{currentCategory === item.id ? 'active' : ''}}"
+        wx:for="{{categories}}"
+        wx:key="id"
+        bindtap="switchCategory"
+        data-category="{{item.id}}"
+      >
+        {{item.name}}
+      </view>
+    </view>
+  </scroll-view>
+
+  <view class="list-stack">
+    <view
+      class="surface-card policy-card"
+      wx:for="{{displayPolicies}}"
+      wx:key="id"
+      bindtap="viewPolicy"
+      data-id="{{item.id}}"
+    >
+      <view class="policy-card-top">
+        <text class="policy-icon">{{item.icon}}</text>
+        <view class="policy-main">
+          <text class="policy-name">{{item.title}}</text>
+          <text class="policy-summary">{{item.summary}}</text>
+        </view>
+      </view>
+      <view class="tag-row">
+        <text class="tag" wx:for="{{item.tags}}" wx:key="index">{{item}}</text>
+      </view>
+    </view>
+  </view>
+</view>

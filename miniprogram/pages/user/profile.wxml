@@ -1,0 +1,59 @@
+<view class="page-shell profile-page">
+  <view class="surface-card profile-hero">
+    <view class="profile-top">
+      <view class="avatar">{{userInfo ? (userInfo.nickname ? userInfo.nickname.slice(0, 1) : '青') : '游'}}</view>
+      <view class="profile-main">
+        <text class="profile-name">{{userInfo ? (userInfo.nickname || '青春用户') : '游客状态'}}</text>
+        <text class="profile-phone">{{userInfo ? (userInfo.phone || '待绑定手机号') : '登录后查看红包与消费券'}}</text>
+      </view>
+      <button wx:if="{{!userInfo}}" class="secondary-btn mini-btn" bindtap="goLogin">立即登录</button>
+    </view>
+
+    <view class="summary-grid profile-stats">
+      <view class="summary-card" bindtap="goToRedpacket">
+        <text class="summary-value">{{stats.redpacketCount}}</text>
+        <text class="summary-label">红包记录</text>
+      </view>
+      <view class="summary-card" bindtap="goToCoupon">
+        <text class="summary-value">{{stats.couponCount}}</text>
+        <text class="summary-label">消费券</text>
+      </view>
+      <view class="summary-card" bindtap="goToLottery">
+        <text class="summary-value">{{stats.totalAmount}}</text>
+        <text class="summary-label">累计金额</text>
+      </view>
+      <view class="summary-card" bindtap="goToLottery">
+        <text class="summary-value">{{stats.hasDrawnLottery ? '已抽奖' : '待抽奖'}}</text>
+        <text class="summary-label">抽奖状态</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="list-stack">
+    <view class="surface-card menu-card" bindtap="goToLottery">
+      <text class="menu-title">进入抽奖页面</text>
+      <text class="menu-desc">查看大转盘、九宫格和你的抽奖结果</text>
+    </view>
+    <view class="surface-card menu-card" bindtap="goToMerchant">
+      <text class="menu-title">附近青年商家</text>
+      <text class="menu-desc">找到支持消费券的商家和青年活动场景</text>
+    </view>
+    <view class="surface-card menu-card" bindtap="goToPolicy">
+      <text class="menu-title">政策福利清单</text>
+      <text class="menu-desc">继续查看就业、培训、安居和补贴政策</text>
+    </view>
+  </view>
+
+  <view class="glass-card rules-card">
+    <view class="section-head">
+      <text class="section-title">使用提醒</text>
+      <text class="section-subtitle">领取、发放与核销说明</text>
+    </view>
+    <view class="list-stack">
+      <view class="list-card" wx:for="{{activityRules}}" wx:key="index">
+        <text class="rule-text">{{index + 1}}. {{item}}</text>
+      </view>
+    </view>
+    <button class="secondary-btn" bindtap="contactService">联系客服 {{serviceInfo.phone}}</button>
+  </view>
+</view>

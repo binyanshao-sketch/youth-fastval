@@ -1,0 +1,61 @@
+.merchant-detail-page {
+  display: flex;
+  flex-direction: column;
+  gap: 22rpx;
+}
+
+.detail-hero,
+.info-card {
+  padding: 28rpx;
+}
+
+.detail-kicker {
+  background: rgba(214, 74, 33, 0.12);
+  color: #c04f21;
+}
+
+.merchant-detail-title {
+  display: block;
+  margin-top: 18rpx;
+  font-size: 46rpx;
+  font-weight: 800;
+  color: #2f231d;
+}
+
+.merchant-detail-desc {
+  display: block;
+  margin-top: 12rpx;
+  font-size: 24rpx;
+  line-height: 1.8;
+  color: #8d6b59;
+}
+
+.detail-tags {
+  margin-top: 18rpx;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 20rpx;
+  padding: 18rpx 0;
+  border-bottom: 1rpx solid rgba(141, 107, 89, 0.16);
+}
+
+.info-row:last-child {
+  border-bottom: none;
+}
+
+.info-label {
+  width: 160rpx;
+  font-size: 24rpx;
+  color: #8d6b59;
+}
+
+.info-value {
+  flex: 1;
+  text-align: right;
+  font-size: 24rpx;
+  line-height: 1.8;
+  color: #2f231d;
+}

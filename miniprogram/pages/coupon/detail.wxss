@@ -1,0 +1,64 @@
+.detail-page {
+  display: flex;
+  flex-direction: column;
+  gap: 22rpx;
+}
+
+.detail-card,
+.detail-info {
+  padding: 28rpx;
+}
+
+.detail-name {
+  display: block;
+  margin-top: 16rpx;
+  font-size: 40rpx;
+  font-weight: 800;
+  color: #2f231d;
+}
+
+.detail-money {
+  display: block;
+  margin-top: 14rpx;
+  font-size: 72rpx;
+  font-weight: 800;
+  color: #d84b20;
+}
+
+.detail-meta,
+.detail-text {
+  display: block;
+  margin-top: 10rpx;
+  font-size: 24rpx;
+  line-height: 1.8;
+  color: #8d6b59;
+}
+
+.code-panel {
+  margin-top: 26rpx;
+  padding: 28rpx;
+  border-radius: 28rpx;
+  background: rgba(255, 255, 255, 0.7);
+  text-align: center;
+}
+
+.qrcode-image {
+  width: 360rpx;
+  height: 360rpx;
+  margin: 0 auto;
+}
+
+.verify-code {
+  display: block;
+  margin-top: 18rpx;
+  font-size: 34rpx;
+  font-weight: 700;
+  letter-spacing: 4rpx;
+}
+
+.verify-tip {
+  display: block;
+  margin-top: 12rpx;
+  font-size: 22rpx;
+  color: #8d6b59;
+}

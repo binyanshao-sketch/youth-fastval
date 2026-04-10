@@ -1,0 +1,170 @@
+.merchant-page {
+  display: flex;
+  flex-direction: column;
+  gap: 22rpx;
+}
+
+.merchant-hero,
+.search-card {
+  padding: 28rpx;
+}
+
+.merchant-hero {
+  background:
+    radial-gradient(circle at top right, rgba(255, 255, 255, 0.18), transparent 30%),
+    linear-gradient(145deg, rgba(13, 95, 168, 0.08), rgba(27, 161, 145, 0.1));
+}
+
+.merchant-kicker {
+  background: rgba(13, 95, 168, 0.12);
+  color: #0d5fa8;
+}
+
+.merchant-title {
+  display: block;
+  margin-top: 18rpx;
+  font-size: 46rpx;
+  font-weight: 800;
+  line-height: 1.2;
+  color: #163b63;
+}
+
+.merchant-desc {
+  display: block;
+  margin-top: 12rpx;
+  font-size: 24rpx;
+  line-height: 1.8;
+  color: #6f879a;
+}
+
+.search-input {
+  height: 84rpx;
+  padding: 0 24rpx;
+  border-radius: 24rpx;
+  background: rgba(255, 255, 255, 0.74);
+  font-size: 26rpx;
+}
+
+.category-scroll {
+  margin-top: 18rpx;
+  white-space: nowrap;
+}
+
+.category-row {
+  display: inline-flex;
+  gap: 12rpx;
+  padding-right: 10rpx;
+}
+
+.category-chip {
+  padding: 14rpx 24rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.66);
+  color: #6f879a;
+  font-size: 24rpx;
+  font-weight: 700;
+}
+
+.category-chip.active {
+  background: linear-gradient(145deg, #0d5fa8 0%, #1ca391 100%);
+  color: #fff;
+  box-shadow: 0 12rpx 24rpx rgba(13, 95, 168, 0.18);
+}
+
+.merchant-card {
+  padding: 24rpx;
+}
+
+.merchant-guide-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14rpx;
+}
+
+.guide-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 10rpx;
+  min-height: 48rpx;
+  padding: 0 18rpx 0 10rpx;
+  border-radius: 999rpx;
+  font-size: 22rpx;
+  font-weight: 700;
+}
+
+.guide-badge.station {
+  background: rgba(13, 95, 168, 0.1);
+  color: #0d5fa8;
+}
+
+.guide-badge.featured {
+  background: rgba(27, 161, 145, 0.12);
+  color: #117a70;
+}
+
+.guide-icon {
+  width: 34rpx;
+  height: 34rpx;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18rpx;
+}
+
+.distance-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 46rpx;
+  padding: 0 18rpx;
+  border-radius: 999rpx;
+  background: rgba(35, 180, 132, 0.14);
+  color: #15724f;
+  font-size: 22rpx;
+  font-weight: 700;
+}
+
+.merchant-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18rpx;
+  margin-top: 18rpx;
+}
+
+.merchant-copy {
+  flex: 1;
+}
+
+.merchant-name {
+  display: block;
+  font-size: 32rpx;
+  font-weight: 800;
+  color: #163b63;
+}
+
+.merchant-address {
+  display: block;
+  margin-top: 10rpx;
+  font-size: 23rpx;
+  line-height: 1.72;
+  color: #6f879a;
+}
+
+.merchant-arrow {
+  margin-top: 6rpx;
+  color: #78a4c6;
+  font-size: 42rpx;
+  line-height: 1;
+}
+
+.merchant-guide-text {
+  display: block;
+  margin-top: 18rpx;
+  font-size: 24rpx;
+  line-height: 1.8;
+  color: #4f6676;
+}

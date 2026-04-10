@@ -1,0 +1,93 @@
+<view class="page-shell result-page-v3 {{pageEntered ? 'page-entered' : ''}}" wx:if="{{ready}}">
+  <view class="result-atmosphere atmosphere-top"></view>
+  <view class="result-atmosphere atmosphere-bottom"></view>
+
+  <view class="honor-card-shell stagger-item stage-1">
+    <view class="honor-card {{showGlow ? 'glow-active' : ''}}">
+      <view class="card-inner">
+        <view class="card-header">
+          <text class="card-kicker">共青团宜宾市委 · 认证</text>
+          <view class="card-logo">YB-YOUTH</view>
+        </view>
+
+        <view class="card-main">
+          <text class="poster-headline">{{poster.headline}}</text>
+          <view class="amount-display">
+            <text class="currency">¥</text>
+            <text class="amount-num">{{poster.amount}}</text>
+          </view>
+          <text class="poster-title">{{poster.title}}</text>
+        </view>
+
+        <view class="card-footer">
+          <text class="blessing-text">“{{poster.blessing}}”</text>
+          <view class="stamp">青春宜宾</view>
+        </view>
+      </view>
+      <view class="card-reflection"></view>
+      <view class="card-glow-ring"></view>
+    </view>
+  </view>
+
+  <view class="glass-card honor-status stagger-item stage-2">
+    <view class="panel-header">
+      <view>
+        <text class="panel-title">数字荣誉状态</text>
+        <text class="panel-subtitle">{{delivery.description}}</text>
+      </view>
+      <text class="status-chip {{delivery.tone}}">{{delivery.title}}</text>
+    </view>
+
+    <view class="status-grid">
+      <view class="status-item">
+        <text class="status-label">到账金额</text>
+        <text class="status-value">¥{{delivery.amount}}</text>
+      </view>
+      <view class="status-item">
+        <text class="status-label">发放通道</text>
+        <text class="status-value">{{delivery.channel}}</text>
+      </view>
+      <view class="status-item">
+        <text class="status-label">领取时间</text>
+        <text class="status-value">{{receivedAtText || '已入账'}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="benefits-panel glass-card stagger-item stage-3">
+    <view class="panel-header">
+      <view>
+        <text class="panel-title">已同步入账权益</text>
+        <text class="panel-subtitle">红包与消费券会一起进入你的权益页</text>
+      </view>
+      <text class="benefit-count">共 {{coupons.length + 1}} 项</text>
+    </view>
+
+    <scroll-view class="benefit-scroll" scroll-x enable-flex>
+      <view class="benefit-row">
+        <view class="benefit-pill" wx:for="{{coupons}}" wx:key="id">
+          <view class="pill-icon">券</view>
+          <view class="pill-copy">
+            <text class="pill-name">{{item.name}}</text>
+            <text class="pill-meta">满 {{item.minSpend}} 可用</text>
+          </view>
+        </view>
+        <view class="benefit-pill highlight">
+          <view class="pill-icon">红</view>
+          <view class="pill-copy">
+            <text class="pill-name">现金红包</text>
+            <text class="pill-meta">微信零钱到账</text>
+          </view>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+
+  <view class="action-footer stagger-item stage-4">
+    <button class="primary-btn main-action" bindtap="goToHomeLottery">立即前往首页抽奖</button>
+    <view class="secondary-actions">
+      <button class="secondary-btn ghost-btn" bindtap="goToCoupons">查看消费券</button>
+      <button class="secondary-btn ghost-btn" bindtap="goHome">返回首页</button>
+    </view>
+  </view>
+</view>

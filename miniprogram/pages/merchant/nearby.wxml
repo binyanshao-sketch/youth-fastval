@@ -1,0 +1,53 @@
+<view class="page-shell merchant-page">
+  <view class="surface-card merchant-hero">
+    <text class="hero-kicker merchant-kicker">青年生活指南</text>
+    <text class="merchant-title">把支持消费券的青年友好商家收进一张路线图</text>
+    <text class="merchant-desc">优先展示青年驿站与五四优选商家。定位成功后会按距离排序，方便你领取福袋后直接到店使用。</text>
+  </view>
+
+  <view class="glass-card search-card">
+    <input class="search-input" placeholder="搜索商家名称" value="{{keyword}}" bindinput="onSearchInput" />
+    <scroll-view class="category-scroll" scroll-x enable-flex>
+      <view class="category-row">
+        <view
+          class="category-chip {{currentCategory === item.id ? 'active' : ''}}"
+          wx:for="{{categories}}"
+          wx:key="id"
+          bindtap="filterCategory"
+          data-category="{{item.id}}"
+        >
+          {{item.name}}
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+
+  <view wx:if="{{merchants.length}}" class="list-stack">
+    <view class="surface-card merchant-card" wx:for="{{merchants}}" wx:key="id" bindtap="goToDetail" data-id="{{item.id}}">
+      <view class="merchant-guide-row">
+        <view class="guide-badge {{item.guideTone}}">
+          <text class="guide-icon">{{item.guideIcon}}</text>
+          <text>{{item.guideBadge}}</text>
+        </view>
+        <text class="distance-chip">{{item.distanceText}}</text>
+      </view>
+
+      <view class="merchant-card-top">
+        <view class="merchant-copy">
+          <text class="merchant-name">{{item.name}}</text>
+          <text class="merchant-address">{{item.address}}</text>
+        </view>
+        <text class="merchant-arrow">›</text>
+      </view>
+
+      <text class="merchant-guide-text">{{item.youthTagline}}</text>
+
+      <view class="tag-row">
+        <text class="tag">{{item.category}}</text>
+        <text class="tag">{{item.couponInfo}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{!merchants.length && !loading}}" class="empty-panel">没有匹配到商家，试试切换分类或稍后再看。</view>
+</view>

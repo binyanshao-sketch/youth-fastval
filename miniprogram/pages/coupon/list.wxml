@@ -1,0 +1,31 @@
+<view class="page-shell coupon-page">
+  <view class="surface-card coupon-hero">
+    <text class="hero-kicker coupon-kicker">我的权益</text>
+    <text class="coupon-title">消费券与福利卡包</text>
+    <text class="coupon-desc">福袋到账的消费券会在这里统一展示，未使用、已使用和已过期状态一眼可见。</text>
+  </view>
+
+  <view class="glass-card tabs-card">
+    <view class="tabs">
+      <view class="tab-item {{currentTab === '1' ? 'active' : ''}}" bindtap="switchTab" data-tab="1">未使用 {{unusedCount}}</view>
+      <view class="tab-item {{currentTab === '2' ? 'active' : ''}}" bindtap="switchTab" data-tab="2">已使用 {{usedCount}}</view>
+      <view class="tab-item {{currentTab === '3' ? 'active' : ''}}" bindtap="switchTab" data-tab="3">已过期 {{expiredCount}}</view>
+    </view>
+  </view>
+
+  <view wx:if="{{coupons.length}}" class="list-stack">
+    <view class="surface-card coupon-card" wx:for="{{coupons}}" wx:key="id" bindtap="goToDetail" data-id="{{item.id}}">
+      <view class="coupon-left">
+        <text class="coupon-money">¥{{item.coupon.amount}}</text>
+        <text class="coupon-min">满 {{item.coupon.minSpend}} 可用</text>
+      </view>
+      <view class="coupon-right">
+        <text class="coupon-name">{{item.coupon.name}}</text>
+        <text class="coupon-date">{{item.coupon.validFrom}} - {{item.coupon.validTo}}</text>
+        <text class="tiny-chip">{{currentTab === '1' ? '待使用' : (currentTab === '2' ? '已使用' : '已过期')}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view wx:else class="empty-panel">当前分类下暂无消费券，领取福袋后再回来看看。</view>
+</view>

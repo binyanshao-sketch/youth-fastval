@@ -1,0 +1,43 @@
+{
+  "name": "youth-fastval-server",
+  "version": "1.0.0",
+  "description": "青春活动福袋后端服务",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "nodemon src/app.js",
+    "test": "jest",
+    "create:admin": "node scripts/create-admin.js",
+    "smoke:admin": "node scripts/admin-smoke.js",
+    "smoke:admin:full": "SMOKE_MODE=full node scripts/admin-smoke.js",
+    "migrate": "node scripts/migrate.js",
+    "lint:check": "node -e \"console.log('lint placeholder')\""
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "mysql2": "^3.6.0",
+    "sequelize": "^6.32.0",
+    "ioredis": "^5.4.1",
+    "axios": "^1.5.0",
+    "jsonwebtoken": "^9.0.2",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "helmet": "^7.0.0",
+    "express-rate-limit": "^7.0.0",
+    "express-validator": "^7.0.0",
+    "dotenv": "^16.3.0",
+    "qrcode": "^1.5.4",
+    "tencentcloud-sdk-nodejs-sms": "^4.0.650",
+    "winston": "^3.10.0",
+    "dayjs": "^1.11.0",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.0",
+    "jest": "^29.6.0",
+    "supertest": "^7.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
