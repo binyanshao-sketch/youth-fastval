@@ -19,7 +19,7 @@
       >
         {{hasReceived ? '再弹一张荣誉海报' : '领取青春福袋'}}
       </button>
-      <button class="secondary-btn" bindtap="goToMerchant">查看青年生活指南</button>
+      <button class="secondary-btn" bindtap="goToPolicy">查看青年政策福利</button>
     </view>
 
     <view wx:if="{{countdown}}" class="countdown glass-card">

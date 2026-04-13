@@ -72,7 +72,10 @@ Page({
     }
 
     try {
-      await app.ensureLogin();
+      if (!app.globalData.token) {
+        wx.navigateTo({ url: '/pages/login/index' });
+        return;
+      }
       await app.refreshUserInfo();
     } catch (error) {
       wx.showToast({

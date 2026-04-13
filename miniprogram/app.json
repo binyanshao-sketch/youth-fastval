@@ -1,13 +1,13 @@
 {
   "pages": [
     "pages/index/index",
+    "pages/login/index",
     "pages/lucky-bag/receive",
     "pages/lucky-bag/result",
     "pages/lottery/index",
     "pages/redpacket/list",
     "pages/coupon/list",
     "pages/coupon/detail",
-    "pages/merchant/nearby",
     "pages/merchant/detail",
     "pages/policy/index",
     "pages/policy/detail",

@@ -675,7 +675,10 @@ Page({
     }
 
     try {
-      await app.ensureLogin();
+      if (!app.globalData.token) {
+        wx.navigateTo({ url: '/pages/login/index' });
+        return;
+      }
       await app.refreshUserInfo();
       wx.navigateTo({ url: '/pages/lucky-bag/receive' });
     } catch (error) {
@@ -701,10 +704,6 @@ Page({
 
   goToRedpacket() {
     wx.navigateTo({ url: '/pages/redpacket/list' });
-  },
-
-  goToMerchant() {
-    wx.navigateTo({ url: '/pages/merchant/nearby' });
   },
 
   goToPolicy() {

@@ -98,6 +98,43 @@
       </div>
     </div>
 
+    <div class="page-card" style="padding: 22px;">
+      <div class="section-heading">
+        <div>
+          <h3>红包海报配置</h3>
+          <p>每个红包金额档位对应一张专属海报，领取福袋后展示给用户。</p>
+        </div>
+      </div>
+      <div class="poster-grid">
+        <div class="poster-card" v-for="item in config.redpacketPool" :key="'poster-' + item.id">
+          <div class="poster-header">
+            <strong>¥{{ item.amount }}</strong>
+            <span class="mini-note">{{ item.blessing }}</span>
+          </div>
+          <div class="poster-preview">
+            <img v-if="item.posterUrl" :src="item.posterUrl" class="poster-img" @error="$event.target.style.display='none'" />
+            <div v-else class="poster-empty">暂未上传</div>
+          </div>
+          <div class="poster-actions">
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              class="poster-file-input"
+              :id="'poster-input-' + item.id"
+              @change="(e) => handlePosterUpload(item.id, e)"
+            />
+            <label :for="'poster-input-' + item.id" class="el-button el-button--primary el-button--small">
+              {{ item.posterUrl ? '更换海报' : '上传海报' }}
+            </label>
+            <el-button v-if="item.posterUrl" size="small" type="danger" plain @click="removePoster(item.id)">删除</el-button>
+          </div>
+          <div v-if="uploadProgress[item.id]" class="poster-progress">
+            <el-progress :percentage="uploadProgress[item.id]" :stroke-width="4" />
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="panel-grid">
       <div class="page-card" style="padding: 22px;">
         <div class="section-heading">
@@ -192,9 +229,11 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import api from '@/api'
+import { uploadToQiniu } from '@/utils/qiniuUpload'
 
 const loading = ref(false)
 const records = ref([])
+const uploadProgress = reactive({})
 const filters = reactive({ phone: '' })
 const pagination = reactive({ page: 1, pageSize: 20, total: 0 })
 const overview = ref({ receivedCount: 0, sentCount: 0, pendingCount: 0 })
@@ -307,6 +346,47 @@ async function saveConfig() {
   if (response.success) {
     ElMessage.success('青春福袋配置已保存')
     loadConfig()
+  }
+}
+
+async function handlePosterUpload(poolId, event) {
+  const file = event.target.files?.[0]
+  event.target.value = ''
+  if (!file) return
+
+  if (file.size > 5 * 1024 * 1024) {
+    ElMessage.warning('图片不能超过 5MB')
+    return
+  }
+
+  try {
+    uploadProgress[poolId] = 1
+    const url = await uploadToQiniu(file, 'poster/', (pct) => {
+      uploadProgress[poolId] = pct
+    })
+    const response = await api.updatePoolPoster(poolId, url)
+    if (response.success) {
+      ElMessage.success('海报上传成功')
+      const item = config.redpacketPool.find((p) => p.id === poolId)
+      if (item) item.posterUrl = url
+    }
+  } catch (error) {
+    ElMessage.error(error.message || '上传失败')
+  } finally {
+    delete uploadProgress[poolId]
+  }
+}
+
+async function removePoster(poolId) {
+  try {
+    const response = await api.updatePoolPoster(poolId, '')
+    if (response.success) {
+      ElMessage.success('海报已删除')
+      const item = config.redpacketPool.find((p) => p.id === poolId)
+      if (item) item.posterUrl = ''
+    }
+  } catch (error) {
+    ElMessage.error(error.message || '删除失败')
   }
 }
 

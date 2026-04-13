@@ -44,14 +44,7 @@ Page({
   },
 
   goLogin() {
-    app.login()
-      .then(() => this.bootstrap())
-      .catch((error) => {
-        wx.showToast({
-          title: error.message || '登录失败',
-          icon: 'none'
-        });
-      });
+    wx.navigateTo({ url: '/pages/login/index' });
   },
 
   goToRedpacket() {
@@ -60,10 +53,6 @@ Page({
 
   goToCoupon() {
     wx.switchTab({ url: '/pages/coupon/list' });
-  },
-
-  goToMerchant() {
-    wx.navigateTo({ url: '/pages/merchant/nearby' });
   },
 
   goToPolicy() {

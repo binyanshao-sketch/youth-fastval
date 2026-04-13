@@ -34,10 +34,6 @@
       <text class="menu-title">进入抽奖页面</text>
       <text class="menu-desc">查看大转盘、九宫格和你的抽奖结果</text>
     </view>
-    <view class="surface-card menu-card" bindtap="goToMerchant">
-      <text class="menu-title">附近青年商家</text>
-      <text class="menu-desc">找到支持消费券的商家和青年活动场景</text>
-    </view>
     <view class="surface-card menu-card" bindtap="goToPolicy">
       <text class="menu-title">政策福利清单</text>
       <text class="menu-desc">继续查看就业、培训、安居和补贴政策</text>

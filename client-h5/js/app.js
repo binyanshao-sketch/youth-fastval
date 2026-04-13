@@ -46,6 +46,17 @@
     },
     luckyBag: null,
     userStats: emptyStats(),
+    login: {
+      tab: 'password',
+      email: '',
+      password: '',
+      code: '',
+      codeSending: false,
+      codeSent: false,
+      codeCountdown: 0,
+      submitting: false,
+      isRegister: false
+    },
     receive: {
       selectedSlot: null,
       agreePrivacy: true,
@@ -77,14 +88,6 @@
       },
       detail: null
     },
-    merchants: {
-      keyword: '',
-      currentCategory: '',
-      list: [],
-      detail: null,
-      location: null,
-      locationRequested: false
-    },
     policies: {
       currentCategory: '',
       displayList: content.policies || [],
@@ -106,7 +109,6 @@
   let countdownTimer = null;
   let glowTimer = null;
   let gridTimer = null;
-  let merchantSearchTimer = null;
   let lastHomePosterKey = '';
 
   function resolveApiBase() {
@@ -149,21 +151,17 @@
       return { name: 'coupon-detail', params: { id: segments[1] } };
     }
 
-    if (segments[0] === 'merchant' && segments[1]) {
-      return { name: 'merchant-detail', params: { id: segments[1] } };
-    }
-
     if (segments[0] === 'policy' && segments[1]) {
       return { name: 'policy-detail', params: { id: segments[1] } };
     }
 
     const mapping = {
       home: 'home',
+      login: 'login',
       receive: 'receive',
       result: 'result',
       lottery: 'lottery',
       coupons: 'coupons',
-      merchants: 'merchants',
       policies: 'policies',
       redpackets: 'redpackets',
       profile: 'profile'
@@ -518,63 +516,6 @@
     };
   }
 
-  async function loadMerchants() {
-    try {
-      const data = await apiRequest('/api/user/merchants/nearby', {
-        data: {
-          keyword: state.merchants.keyword,
-          category: state.merchants.currentCategory,
-          latitude: state.merchants.location?.latitude,
-          longitude: state.merchants.location?.longitude
-        }
-      });
-
-      state.merchants.list = (data.list && data.list.length)
-        ? data.list
-        : filterLocalMerchants(content.merchantFallbacks || []);
-    } catch (error) {
-      state.merchants.list = filterLocalMerchants(content.merchantFallbacks || []);
-    }
-
-    requestLocation();
-  }
-
-  function requestLocation() {
-    if (state.merchants.locationRequested || !navigator.geolocation) {
-      return;
-    }
-
-    state.merchants.locationRequested = true;
-    navigator.geolocation.getCurrentPosition((position) => {
-      state.merchants.location = {
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude
-      };
-
-      if (state.route.name === 'merchants') {
-        loadMerchants()
-          .then(queueRender)
-          .catch(() => {});
-      }
-    }, () => {});
-  }
-
-  function filterLocalMerchants(source) {
-    const keyword = state.merchants.keyword.trim();
-    const category = state.merchants.currentCategory;
-
-    return source.filter((item) => {
-      const matchKeyword = !keyword || item.name.includes(keyword);
-      const matchCategory = !category || item.category === category;
-      return matchKeyword && matchCategory;
-    });
-  }
-
-  function loadMerchantDetail(id) {
-    const source = state.merchants.list.length ? state.merchants.list : (content.merchantFallbacks || []);
-    state.merchants.detail = source.find((item) => String(item.id) === String(id)) || null;
-  }
-
   function loadPolicyDetail(id) {
     state.policies.detail = id === 'privacy'
       ? content.privacyPolicy
@@ -599,6 +540,12 @@
 
     try {
       switch (state.route.name) {
+        case 'login':
+          if (state.session.token) {
+            navigate('/home');
+            return;
+          }
+          break;
         case 'home':
           await Promise.all([loadActivityStatus(), loadHomeData()]);
           if (state.luckyBag) {
@@ -634,13 +581,6 @@
           break;
         case 'coupon-detail':
           await Promise.all([loadCoupons(), loadCouponDetail(state.route.params.id)]);
-          break;
-        case 'merchants':
-          await Promise.all([loadMerchants(), loadUserInfo(true)]);
-          break;
-        case 'merchant-detail':
-          await Promise.all([loadMerchants(), loadUserInfo(true)]);
-          loadMerchantDetail(state.route.params.id);
           break;
         case 'policies':
           setPolicyCategory(state.policies.currentCategory || '');
@@ -852,8 +792,7 @@
       lottery: { title: '抽奖页面', subtitle: '当前启用奖池直接可见，延续和小程序同一套节奏' },
       coupons: { title: '权益卡包', subtitle: '消费券、福利卡和到店核销入口' },
       'coupon-detail': { title: '消费券详情', subtitle: '到店出示二维码或核销码即可使用' },
-      merchants: { title: '青年生活指南', subtitle: '沿着三江青年路线寻找可核销商家' },
-      'merchant-detail': { title: '商家详情', subtitle: '查看营业时间、地址和联系信息' },
+
       policies: { title: '政策福利', subtitle: '就业、安居、培训和补贴支持一页通览' },
       'policy-detail': { title: '政策详情', subtitle: '查看条目重点、适用人群和办理路径' },
       redpackets: { title: '红包记录', subtitle: '查看红包到账进度和历次领取记录' },
@@ -1134,27 +1073,6 @@
     queueRender();
   }
 
-  function scheduleMerchantSearch() {
-    clearTimeout(merchantSearchTimer);
-    merchantSearchTimer = setTimeout(() => {
-      loadMerchants()
-        .then(queueRender)
-        .catch((error) => setToast(error.message || '商家搜索失败'));
-    }, 260);
-  }
-
-  function openMap(merchant) {
-    if (!merchant?.latitude || !merchant?.longitude) {
-      setToast('当前商家未配置地图位置');
-      return;
-    }
-
-    const query = new URLSearchParams({
-      marker: `coord:${merchant.latitude},${merchant.longitude};title:${merchant.name};addr:${merchant.address}`
-    });
-    window.open(`https://apis.map.qq.com/uri/v1/marker?${query.toString()}`, '_blank');
-  }
-
   function copyText(text) {
     if (!text) {
       return;
@@ -1337,6 +1255,175 @@
     `;
   }
 
+  function renderLoginPage() {
+    const isPassword = state.login.tab === 'password';
+    return `
+      <section class="page-shell login-page">
+        <div class="hero-card" style="text-align:center;">
+          <div class="hero-title" style="font-size:22px;">三江青年福袋</div>
+          <p class="hero-desc">登录后领取福袋、参与抽奖</p>
+        </div>
+
+        <div class="glass-card" style="padding:24px 20px;">
+          <div class="login-tabs">
+            <button class="login-tab ${isPassword ? 'active' : ''}" data-action="login-tab" data-tab="password">密码登录</button>
+            <button class="login-tab ${!isPassword ? 'active' : ''}" data-action="login-tab" data-tab="email">邮箱验证码</button>
+          </div>
+
+          <div class="login-form">
+            <div class="form-group">
+              <label class="form-label">邮箱</label>
+              <input class="form-input" type="email" data-model="login.email" value="${escapeHtml(state.login.email)}" placeholder="请输入邮箱地址" autocomplete="email">
+            </div>
+
+            ${isPassword ? `
+              <div class="form-group">
+                <label class="form-label">密码</label>
+                <input class="form-input" type="password" data-model="login.password" value="${escapeHtml(state.login.password)}" placeholder="${state.login.isRegister ? '设置密码（至少6位）' : '请输入密码'}" autocomplete="${state.login.isRegister ? 'new-password' : 'current-password'}">
+              </div>
+              ${state.login.isRegister ? `
+                <div class="form-group">
+                  <label class="form-label">昵称（选填）</label>
+                  <input class="form-input" type="text" data-model="login.nickname" value="" placeholder="默认使用邮箱前缀">
+                </div>
+              ` : ''}
+              <button class="primary-btn" data-action="login-submit" ${state.login.submitting ? 'disabled' : ''}>
+                ${state.login.submitting ? '处理中...' : (state.login.isRegister ? '注册' : '登录')}
+              </button>
+              <div class="login-switch">
+                <button class="link-btn" data-action="login-toggle-register">
+                  ${state.login.isRegister ? '已有账号？去登录' : '没有账号？去注册'}
+                </button>
+              </div>
+            ` : `
+              <div class="form-group">
+                <label class="form-label">验证码</label>
+                <div class="code-input-row">
+                  <input class="form-input" type="text" data-model="login.code" value="${escapeHtml(state.login.code)}" placeholder="6位验证码" maxlength="6" inputmode="numeric" autocomplete="one-time-code">
+                  <button class="code-btn" data-action="login-send-code" ${state.login.codeSending || state.login.codeCountdown > 0 ? 'disabled' : ''}>
+                    ${state.login.codeCountdown > 0 ? state.login.codeCountdown + 's' : (state.login.codeSending ? '发送中...' : '发送验证码')}
+                  </button>
+                </div>
+              </div>
+              <button class="primary-btn" data-action="login-submit" ${state.login.submitting ? 'disabled' : ''}>
+                ${state.login.submitting ? '处理中...' : '登录 / 注册'}
+              </button>
+            `}
+          </div>
+        </div>
+      </section>
+    `;
+  }
+
+  async function handleSendEmailCode() {
+    const email = state.login.email.trim();
+    if (!email) {
+      setToast('请输入邮箱地址');
+      return;
+    }
+
+    state.login.codeSending = true;
+    queueRender();
+
+    try {
+      const data = await apiRequest('/api/user/auth/email/send', {
+        method: 'POST',
+        auth: false,
+        data: { email }
+      });
+
+      state.login.codeSent = true;
+      state.login.codeCountdown = 60;
+
+      if (data.mockCode) {
+        state.login.code = data.mockCode;
+        setToast('测试模式：验证码已自动填入');
+      } else {
+        setToast('验证码已发送至邮箱');
+      }
+
+      const timer = setInterval(() => {
+        state.login.codeCountdown -= 1;
+        if (state.login.codeCountdown <= 0) {
+          clearInterval(timer);
+          state.login.codeSent = false;
+        }
+        queueRender();
+      }, 1000);
+    } catch (error) {
+      setToast(error.message || '发送失败');
+    } finally {
+      state.login.codeSending = false;
+      queueRender();
+    }
+  }
+
+  async function handleLoginSubmit() {
+    const email = state.login.email.trim();
+    if (!email) {
+      setToast('请输入邮箱地址');
+      return;
+    }
+
+    state.login.submitting = true;
+    queueRender();
+
+    try {
+      let data;
+
+      if (state.login.tab === 'password') {
+        const password = state.login.password;
+        if (!password) {
+          setToast('请输入密码');
+          return;
+        }
+
+        if (state.login.isRegister) {
+          if (password.length < 6) {
+            setToast('密码长度至少6位');
+            return;
+          }
+          data = await apiRequest('/api/user/auth/register', {
+            method: 'POST',
+            auth: false,
+            data: { email, password }
+          });
+        } else {
+          data = await apiRequest('/api/user/auth/password', {
+            method: 'POST',
+            auth: false,
+            data: { email, password }
+          });
+        }
+      } else {
+        const code = state.login.code.trim();
+        if (!code || code.length !== 6) {
+          setToast('请输入6位验证码');
+          return;
+        }
+        data = await apiRequest('/api/user/auth/email/login', {
+          method: 'POST',
+          auth: false,
+          data: { email, code }
+        });
+      }
+
+      state.session.token = data.token;
+      localStorage.setItem(storageKeys.token, data.token);
+
+      state.login.email = '';
+      state.login.password = '';
+      state.login.code = '';
+
+      navigate('/home');
+    } catch (error) {
+      setToast(error.message || '登录失败');
+    } finally {
+      state.login.submitting = false;
+      queueRender();
+    }
+  }
+
   function renderHomePage() {
     const hasReceived = !!state.luckyBag;
     const myRedpacket = state.luckyBag?.redPacket || null;
@@ -1355,7 +1442,7 @@
           <p class="hero-desc">以宜宾三江交汇和竹海风景为灵感，领取福袋后海报随机弹出，页面自动滑到抽奖区。整条链路在首页一步完成，更青春、更流畅。</p>
           <div class="hero-actions">
             <button class="primary-btn" data-action="receive-entry" ${!state.activity.isActive ? 'disabled' : ''}>${escapeHtml(primaryText)}</button>
-            <button class="secondary-btn" data-route="/merchants">查看三江生活指南</button>
+            <button class="secondary-btn" data-route="/policies">查看青年政策福利</button>
           </div>
           ${state.activity.countdown ? renderCountdown() : ''}
         </div>
@@ -1709,83 +1796,6 @@
     `;
   }
 
-  function renderMerchantsPage() {
-    return `
-      <section class="page-shell">
-        <div class="hero-card">
-          <span class="hero-kicker">青年生活指南</span>
-          <div class="hero-title">沿着三江路线找可用商家</div>
-          <p class="hero-desc">消费券优先推荐支持青年活动场景的商家，定位成功时会按距离排序，方便你拆袋后直接到店使用。</p>
-        </div>
-
-        <div class="glass-card search-card">
-          <input class="search-input" data-model="merchants.keyword" value="${escapeHtml(state.merchants.keyword)}" placeholder="搜索青年商家名称">
-          <div class="category-row" style="margin-top: 12px;">
-            ${(content.merchantCategories || []).map((item) => `
-              <button class="category-chip ${state.merchants.currentCategory === item.id ? 'active' : ''}" data-action="switch-merchant-category" data-category="${escapeHtml(item.id)}">${escapeHtml(item.name)}</button>
-            `).join('')}
-          </div>
-        </div>
-
-        ${state.merchants.list.length ? `
-          <div class="list-stack">
-            ${state.merchants.list.map((item) => `
-              <button class="surface-card merchant-card" data-route="/merchant/${item.id}">
-                <div class="merchant-card-top">
-                  <div>
-                    <div class="merchant-name">${escapeHtml(item.name)}</div>
-                    <div class="merchant-address">${escapeHtml(item.address)}</div>
-                  </div>
-                  <span class="tiny-chip">${escapeHtml(item.distanceText || item.distance || '青年推荐')}</span>
-                </div>
-                <div class="tag-row">
-                  <span class="tag">${escapeHtml(item.category)}</span>
-                  <span class="tag">${escapeHtml(item.couponInfo || '支持消费券')}</span>
-                </div>
-              </button>
-            `).join('')}
-          </div>
-        ` : '<div class="empty-panel">没有找到匹配商家，换个分类或稍后再看。</div>'}
-      </section>
-    `;
-  }
-
-  function renderMerchantDetailPage() {
-    const merchant = state.merchants.detail;
-    if (!merchant) {
-      return `<section class="page-shell"><div class="empty-panel">商家详情暂时加载失败，请返回路线页重试。</div></section>`;
-    }
-
-    return `
-      <section class="page-shell">
-        <div class="surface-card coupon-stage">
-          <span class="hero-kicker">${escapeHtml(merchant.category || '青年商家')}</span>
-          <div class="merchant-detail-title" style="margin-top: 14px;">${escapeHtml(merchant.name)}</div>
-          <p class="merchant-detail-desc">${escapeHtml(merchant.description || merchant.address)}</p>
-        </div>
-
-        <div class="glass-card info-card">
-          <div class="info-row">
-            <div class="info-label">营业时间</div>
-            <div class="info-value">${escapeHtml(merchant.businessHours || '以门店公示为准')}</div>
-          </div>
-          <div class="info-row">
-            <div class="info-label">联系人员</div>
-            <div class="info-value">${escapeHtml(merchant.contactName || '门店伙伴')}</div>
-          </div>
-          <div class="info-row">
-            <div class="info-label">详细地址</div>
-            <div class="info-value">${escapeHtml(merchant.address || '')}</div>
-          </div>
-        </div>
-
-        <div class="page-actions">
-          <button class="primary-btn" data-action="open-map">导航前往门店</button>
-        </div>
-      </section>
-    `;
-  }
-
   function renderPoliciesPage() {
     return `
       <section class="page-shell">
@@ -1920,10 +1930,6 @@
             <div class="menu-title">进入青春抽奖区</div>
             <p class="menu-desc">查看三江转盘、青春九宫格和你的抽奖结果。</p>
           </button>
-          <button class="surface-card menu-card" data-route="/merchants">
-            <div class="menu-title">三江青年商家</div>
-            <p class="menu-desc">找到支持消费券的商家和青年活动路线。</p>
-          </button>
           <button class="surface-card menu-card" data-route="/policies">
             <div class="menu-title">政策福利清单</div>
             <p class="menu-desc">继续查看就业、培训、安居和补贴支持。</p>
@@ -2038,6 +2044,8 @@
     }
 
     switch (state.route.name) {
+      case 'login':
+        return renderLoginPage();
       case 'home':
         return renderHomePage();
       case 'receive':
@@ -2050,10 +2058,6 @@
         return renderCouponsPage();
       case 'coupon-detail':
         return renderCouponDetailPage();
-      case 'merchants':
-        return renderMerchantsPage();
-      case 'merchant-detail':
-        return renderMerchantDetailPage();
       case 'policies':
         return renderPoliciesPage();
       case 'policy-detail':
@@ -2145,11 +2149,6 @@
         state.coupons.currentTab = target.dataset.tab;
         queueRender();
         break;
-      case 'switch-merchant-category':
-        state.merchants.currentCategory = target.dataset.category || '';
-        await loadMerchants();
-        queueRender();
-        break;
       case 'switch-policy-category':
         setPolicyCategory(target.dataset.category || '');
         queueRender();
@@ -2157,8 +2156,24 @@
       case 'copy-code':
         copyText(target.dataset.code);
         break;
-      case 'open-map':
-        openMap(state.merchants.detail);
+      case 'login-tab':
+        state.login.tab = target.dataset.tab;
+        queueRender();
+        break;
+      case 'login-toggle-register':
+        state.login.isRegister = !state.login.isRegister;
+        queueRender();
+        break;
+      case 'login-send-code':
+        await handleSendEmailCode();
+        break;
+      case 'login-submit':
+        await handleLoginSubmit();
+        break;
+      case 'logout':
+        clearSession();
+        navigate('/login');
+        queueRender();
         break;
       default:
         break;
@@ -2191,12 +2206,14 @@
 
     if (model === 'receive.phone') {
       state.receive.phone = target.value;
+    } else if (model === 'login.email') {
+      state.login.email = target.value;
+    } else if (model === 'login.password') {
+      state.login.password = target.value;
+    } else if (model === 'login.code') {
+      state.login.code = target.value;
     }
 
-    if (model === 'merchants.keyword') {
-      state.merchants.keyword = target.value;
-      scheduleMerchantSearch();
-    }
   });
 
   window.addEventListener('hashchange', () => {
@@ -2211,8 +2228,18 @@
         navigate('/home');
       }
 
-      await ensureSession();
-      await loadUserInfo(true);
+      if (state.session.token) {
+        try {
+          await loadUserInfo(true);
+        } catch (e) {
+          clearSession();
+        }
+      }
+
+      if (!state.session.token && state.route.name !== 'login') {
+        navigate('/login');
+      }
+
       await prepareRoute();
     } catch (error) {
       if (!state.unsupportedMessage) {
