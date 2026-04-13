@@ -11,6 +11,7 @@ const CouponService = require('../services/CouponService');
 const WeChatService = require('../services/WeChatService');
 const SMSService = require('../services/SMSService');
 const LotteryService = require('../services/LotteryService');
+const QiniuService = require('../services/QiniuService');
 const { requireGeofence } = require('../middleware/geofence');
 
 const router = express.Router();
@@ -782,6 +783,50 @@ router.get('/merchants/nearby', userAuth, async (req, res) => {
   } catch (error) {
     logger.error('get merchants failed', { error: error.message, userId: req.userId });
     res.status(500).json({ success: false, message: '获取商家失败' });
+  }
+});
+
+// --- 七牛云图片直传凭证（供生成海报上传用） ---
+router.get('/upload/token', userAuth, rateLimit({ windowMs: 60000, max: 20 }), (req, res) => {
+  if (!QiniuService.isConfigured()) {
+    return res.status(500).json({ success: false, message: '七牛云存储暂未配置' });
+  }
+  const prefix = `posters/u${req.userId}/`;
+  try {
+    const data = QiniuService.getUploadToken({ prefix, expires: 1800 });
+    res.json({ success: true, data });
+  } catch (err) {
+    logger.error('get qiniu token fail', { error: err.message, userId: req.userId });
+    res.status(500).json({ success: false, message: '获取上传凭证失败' });
+  }
+});
+
+// --- 保存生成的海报 ---
+router.post('/poster/save', userAuth, async (req, res) => {
+  const { type, recordId, posterUrl } = req.body;
+  if (!['luckybag', 'lottery'].includes(type) || !recordId || !posterUrl) {
+    return res.status(400).json({ success: false, message: '无效的参数' });
+  }
+  
+  try {
+    const { LotteryRecord, LuckyBagRecord } = require('../models');
+    
+    if (type === 'lottery') {
+      const record = await LotteryRecord.findOne({ where: { id: recordId, user_id: req.userId } });
+      if (!record) return res.status(404).json({ success: false, message: '未找到该抽奖记录' });
+      record.poster_url = posterUrl;
+      await record.save();
+    } else {
+      const record = await LuckyBagRecord.findOne({ where: { id: recordId, user_id: req.userId } });
+      if (!record) return res.status(404).json({ success: false, message: '未找到该福袋记录' });
+      record.poster_url = posterUrl;
+      await record.save();
+    }
+    
+    res.json({ success: true, message: '保存成功' });
+  } catch (error) {
+    logger.error('save poster fail', { error: error.message, userId: req.userId });
+    res.status(500).json({ success: false, message: '保存失败' });
   }
 });
 

@@ -371,6 +371,160 @@ Page({
     }, 220);
   },
 
+  async generateAndUploadPoster() {
+    try {
+      wx.showLoading({ title: '生成中...' });
+      const query = wx.createSelectorQuery();
+      query.select('#posterCanvas')
+        .fields({ node: true, size: true })
+        .exec(async (res) => {
+          if (!res || !res[0] || !res[0].node) {
+            wx.hideLoading();
+            wx.showToast({ title: '画布初始化失败', icon: 'none' });
+            return;
+          }
+          
+          const canvas = res[0].node;
+          const ctx = canvas.getContext('2d');
+          const width = res[0].width;
+          const height = res[0].height;
+          const poster = this.data.posterPopup || {};
+          
+          // 简单绘制一个海报
+          // 背景色
+          ctx.fillStyle = '#0d5fa8';
+          ctx.fillRect(0, 0, width, height);
+
+          // 卡片
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.roundRect(20, 40, width - 40, height - 80, 16);
+          ctx.fill();
+
+          ctx.textAlign = 'center';
+          ctx.fillStyle = '#333333';
+          
+          // Headline
+          ctx.font = 'bold 20px sans-serif';
+          ctx.fillText(poster.headline || '青春分享', width / 2, 80);
+
+          // Amount
+          ctx.fillStyle = '#eb4d4b';
+          ctx.font = 'bold 36px sans-serif';
+          ctx.fillText('¥ ' + (poster.amount || '0.00'), width / 2, 140);
+          
+          // Title
+          ctx.fillStyle = '#333333';
+          ctx.font = 'bold 24px sans-serif';
+          let title = poster.title || '';
+          if (title.length > 12) title = title.substring(0, 12) + '...';
+          ctx.fillText(title, width / 2, 190);
+
+          // Blessing
+          ctx.font = '16px sans-serif';
+          ctx.fillStyle = '#666666';
+          let blessing = poster.blessing || '';
+          // 简单换行
+          if (blessing.length > 14) {
+            ctx.fillText('“' + blessing.substring(0,14), width / 2, 240);
+            ctx.fillText(blessing.substring(14,28) + '”', width / 2, 270);
+          } else {
+             ctx.fillText('“' + blessing + '”', width / 2, 250);
+          }
+
+          // Footer
+          ctx.font = '14px sans-serif';
+          ctx.fillStyle = '#aaaaaa';
+          ctx.fillText(poster.footer || 'YB-YOUTH', width / 2, height - 70);
+
+          // 导出图片
+          wx.canvasToTempFilePath({
+            canvas,
+            x: 0, y: 0,
+            width, height,
+            destWidth: width * 2,
+            destHeight: height * 2,
+            success: async (fileRes) => {
+              const tempFilePath = fileRes.tempFilePath;
+              
+              // 接下来获取 token 并上传
+              try {
+                wx.showLoading({ title: '上传海报...' });
+                const tokenRes = await new Promise((resolve, reject) => {
+                  wx.request({
+                    url: `${getApp().globalData.baseUrl}/api/user/upload/token`,
+                    method: 'GET',
+                    header: { Authorization: `Bearer ${getApp().globalData.token}` },
+                    success: (r) => resolve(r.data),
+                    fail: reject
+                  });
+                });
+
+                if (!tokenRes.success) throw new Error(tokenRes.message);
+
+                const { token, key, domain, uploadUrl } = tokenRes.data;
+
+                const uploadRes = await new Promise((resolve, reject) => {
+                  wx.uploadFile({
+                    url: uploadUrl,
+                    filePath: tempFilePath,
+                    name: 'file',
+                    formData: { token, key },
+                    success: (r) => {
+                      if (r.statusCode === 200) resolve(JSON.parse(r.data));
+                      else reject(new Error('上传失败'));
+                    },
+                    fail: reject
+                  });
+                });
+
+                const finalUrl = `${domain}/${uploadRes.key}`;
+                
+                // 通知后端更新数据库中的 url
+                await new Promise((resolve) => {
+                  wx.request({
+                    url: `${getApp().globalData.baseUrl}/api/user/poster/save`,
+                    method: 'POST',
+                    data: {
+                       type: this.data.posterPopupType === 'share' ? 'lottery' : 'luckybag',
+                       recordId: this.data.lotterySnapshot ? this.data.lotterySnapshot.id : 1, // 模拟取得 recordID
+                       posterUrl: finalUrl
+                    },
+                    header: { Authorization: `Bearer ${getApp().globalData.token}` },
+                    success: resolve
+                  });
+                });
+
+                wx.hideLoading();
+
+                // 顺便保存到本地相册
+                wx.saveImageToPhotosAlbum({
+                  filePath: tempFilePath,
+                  success: () => {
+                    wx.showToast({ title: '保存并上云成功', icon: 'success' });
+                  },
+                  fail: () => {
+                    wx.showToast({ title: '已上云但保存相册失败', icon: 'none' });
+                  }
+                });
+
+              } catch (e) {
+                wx.hideLoading();
+                wx.showToast({ title: e.message || '上传异常', icon: 'none' });
+              }
+            },
+            fail: () => {
+              wx.hideLoading();
+              wx.showToast({ title: '图片导出失败', icon: 'none' });
+            }
+          });
+        });
+    } catch (error) {
+      wx.hideLoading();
+      wx.showToast({ title: '生成错误', icon: 'none' });
+    }
+  },
+
   closePosterPopup() {
     this.setData({
       posterPopupVisible: false

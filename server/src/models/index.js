@@ -133,6 +133,9 @@ module.exports = (sequelize) => {
     },
     selected_slot: {
       type: DataTypes.TINYINT
+    },
+    poster_url: {
+      type: DataTypes.STRING(255)
     }
   }, {
     tableName: 'lucky_bag_records',
@@ -318,6 +321,9 @@ module.exports = (sequelize) => {
       type: DataTypes.STRING(100)
     },
     poster_message: {
+      type: DataTypes.STRING(255)
+    },
+    poster_url: {
       type: DataTypes.STRING(255)
     }
   }, {

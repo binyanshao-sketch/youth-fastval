@@ -242,9 +242,3 @@ onMounted(() => {
   gap: 4px;
 }
 </style>
-    loadData()
-  }
-}
-
-onMounted(loadData)
-</script>
