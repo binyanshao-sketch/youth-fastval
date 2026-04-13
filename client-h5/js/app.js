@@ -7,6 +7,8 @@
     tag: index < 3 ? '三江潮色' : index < 6 ? '竹海好运' : '隐藏惊喜'
   }));
   const gridMapping = [0, 1, 2, 7, null, 3, 6, 5, 4];
+  const gridRingPositions = [0, 1, 2, 5, 8, 7, 6, 3];
+  const wheelPointerAngle = 0;
   const storageKeys = {
     token: 'client_h5_token',
     mode: 'client_h5_mode',
@@ -61,6 +63,7 @@
       wheelRotation: 0,
       wheelDuration: 0,
       gridActiveIndex: -1,
+      gridTrailIndex: -1,
       drawing: false,
       hasDrawn: false,
       result: null
@@ -387,19 +390,27 @@
     ]);
 
     state.lottery.config = config || { wheel: [], grid: [] };
+    state.lottery.activeMode = config?.activeMode || 'wheel';
+    if (!result) {
+      state.lottery.mode = state.lottery.activeMode;
+    }
     state.lottery.result = result || null;
     state.lottery.hasDrawn = !!result;
     state.lottery.drawing = false;
 
     if (result) {
+      const wheelBoard = getLotteryBoard('wheel', result);
+      const gridStop = getGridStopConfig(result.prize?.index, result);
       state.lottery.mode = result.gameType;
-      state.lottery.gridActiveIndex = result.gameType === 'grid' ? result.prize.index : -1;
+      state.lottery.gridActiveIndex = result.gameType === 'grid' ? gridStop.safeIndex : -1;
+      state.lottery.gridTrailIndex = -1;
       state.lottery.wheelRotation = result.gameType === 'wheel'
-        ? getWheelTargetRotation(result.prize.index, state.lottery.config.wheel.length)
+        ? getWheelTargetRotation(result.prize?.index, wheelBoard.length)
         : 0;
       state.lottery.wheelDuration = 0;
     } else {
       state.lottery.gridActiveIndex = -1;
+      state.lottery.gridTrailIndex = -1;
       state.lottery.wheelRotation = 0;
       state.lottery.wheelDuration = 0;
     }
@@ -675,23 +686,94 @@
     };
   }
 
+  function normalizeRotation(rotation) {
+    const normalized = rotation % 360;
+    return normalized < 0 ? normalized + 360 : normalized;
+  }
+
+  function getLotteryBoard(mode, result = state.lottery.result) {
+    const configured = state.lottery.config?.[mode];
+    if (Array.isArray(configured) && configured.length) {
+      return configured;
+    }
+
+    if (result?.gameType === mode && Array.isArray(result.board) && result.board.length) {
+      return result.board;
+    }
+
+    return [];
+  }
+
+  function getSafePrizeIndex(prizeIndex, prizes) {
+    if (Number.isInteger(prizeIndex) && prizeIndex >= 0 && prizeIndex < prizes.length) {
+      return prizeIndex;
+    }
+
+    return prizes.length ? 0 : -1;
+  }
+
+  function getWinningPrizeIndex(mode, result = state.lottery.result) {
+    if (!result || result.gameType !== mode) {
+      return -1;
+    }
+
+    return getSafePrizeIndex(result.prize?.index, getLotteryBoard(mode, result));
+  }
+
+  function getDimmedPrizeCollection(mode) {
+    const prizes = getLotteryBoard(mode);
+    const winningIndex = getWinningPrizeIndex(mode);
+
+    if (winningIndex < 0) {
+      return prizes;
+    }
+
+    return prizes.map((item, index) => ({
+      ...item,
+      color: index === winningIndex ? item.color : '#f3f4f6',
+      accent: index === winningIndex ? item.accent : '#b4bacc'
+    }));
+  }
+
   function getWheelTargetRotation(prizeIndex, count) {
     if (!count) {
       return 0;
     }
 
+    const safeIndex = Number.isInteger(prizeIndex) ? prizeIndex : 0;
     const segment = 360 / count;
-    return 360 - (prizeIndex * segment);
+    return normalizeRotation(wheelPointerAngle - (safeIndex * segment));
+  }
+
+  function getGridRingOrder(result = state.lottery.result) {
+    const prizes = getLotteryBoard('grid', result);
+    return gridRingPositions
+      .map((position) => gridMapping[position])
+      .filter((prizeIndex) => Number.isInteger(prizeIndex) && prizeIndex >= 0 && prizeIndex < prizes.length);
+  }
+
+  function getGridStopConfig(prizeIndex, result = state.lottery.result) {
+    const prizes = getLotteryBoard('grid', result);
+    const safeIndex = getSafePrizeIndex(prizeIndex, prizes);
+    const ringOrder = getGridRingOrder(result);
+    const targetOffset = Math.max(ringOrder.indexOf(safeIndex), 0);
+
+    return {
+      ringOrder,
+      safeIndex,
+      targetOffset
+    };
   }
 
   function getGridCells() {
+    const coll = getDimmedPrizeCollection('grid');
     return gridMapping.map((prizeIndex) => {
       if (prizeIndex === null) {
         return { isCenter: true };
       }
 
       return {
-        ...(state.lottery.config.grid[prizeIndex] || {}),
+        ...(coll[prizeIndex] || {}),
         prizeIndex
       };
     });
@@ -960,9 +1042,10 @@
   }
 
   function playWheel(result) {
-    const extraTurns = 360 * 6;
-    const targetRotation = getWheelTargetRotation(result.prize.index, state.lottery.config.wheel.length);
-    state.lottery.wheelDuration = 4200;
+    const wheelBoard = getLotteryBoard('wheel', result);
+    const extraTurns = 360 * 8;
+    const targetRotation = getWheelTargetRotation(result.prize?.index, wheelBoard.length);
+    state.lottery.wheelDuration = 5000;
     state.lottery.wheelRotation = state.lottery.wheelRotation + extraTurns + targetRotation;
     queueRender();
 
@@ -971,19 +1054,30 @@
       state.lottery.wheelDuration = 0;
       state.lottery.wheelRotation = targetRotation;
       queueRender();
-    }, 4300);
+    }, 5100);
   }
 
   function playGrid(result) {
     clearTimeout(gridTimer);
-    const totalSteps = state.lottery.config.grid.length * 4 + result.prize.index;
+    const { ringOrder, targetOffset } = getGridStopConfig(result.prize?.index, result);
+
+    if (!ringOrder.length) {
+      finishLottery(result);
+      return;
+    }
+
+    const totalSteps = ringOrder.length * 4 + targetOffset;
     let step = 0;
+    let prevIndex = -1;
 
     const tick = () => {
-      state.lottery.gridActiveIndex = step % state.lottery.config.grid.length;
+      prevIndex = state.lottery.gridActiveIndex;
+      state.lottery.gridActiveIndex = ringOrder[step % ringOrder.length];
+      state.lottery.gridTrailIndex = prevIndex;
       queueRender();
 
       if (step >= totalSteps) {
+        state.lottery.gridTrailIndex = -1;
         finishLottery(result);
         return;
       }
@@ -997,14 +1091,38 @@
     tick();
   }
 
+  function showConfetti() {
+    const colors = ['#40d3c0', '#0d5fa8', '#f0c05c', '#e76753', '#1ca391', '#56aaff', '#ff8a65'];
+    const layer = document.createElement('div');
+    layer.className = 'confetti-layer';
+
+    for (let i = 0; i < 40; i++) {
+      const piece = document.createElement('div');
+      piece.className = 'confetti-piece';
+      const color = colors[Math.floor(Math.random() * colors.length)];
+      const left = Math.random() * 100;
+      const size = 6 + Math.random() * 8;
+      const duration = 1.8 + Math.random() * 1.6;
+      const delay = Math.random() * 0.6;
+      piece.style.cssText = `left:${left}%;width:${size}px;height:${size * 0.6}px;background:${color};animation-duration:${duration}s;animation-delay:${delay}s;border-radius:${Math.random() > 0.5 ? '50%' : '2px'};`;
+      layer.appendChild(piece);
+    }
+
+    document.body.appendChild(layer);
+    setTimeout(() => layer.remove(), 4000);
+  }
+
   function finishLottery(result) {
     clearTimeout(gridTimer);
+    const gridStop = getGridStopConfig(result.prize?.index, result);
 
     state.lottery.drawing = false;
     state.lottery.hasDrawn = true;
     state.lottery.mode = result.gameType;
     state.lottery.result = result;
-    state.lottery.gridActiveIndex = result.gameType === 'grid' ? result.prize.index : -1;
+    state.lottery.gridActiveIndex = result.gameType === 'grid' ? gridStop.safeIndex : -1;
+    state.lottery.gridTrailIndex = -1;
+    showConfetti();
     loadHomeData()
       .then(() => {
         if (state.route.name === 'home') {
@@ -1070,18 +1188,11 @@
 
   function renderTopbar() {
     const meta = getRouteMeta();
-    const isMockMode = state.session.mode === 'mock' && /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname);
     return `
       <header class="topbar">
         <div class="topbar-brand">
           <div class="topbar-title">${escapeHtml(meta.title)}</div>
           <div class="topbar-subtitle">${escapeHtml(meta.subtitle)}</div>
-        </div>
-        <div class="topbar-actions">
-          ${isMockMode ? `
-            <span class="test-badge">${escapeHtml('预览模式')}</span>
-            <button class="link-btn" data-action="switch-identity">生成新身份</button>
-          ` : ''}
         </div>
       </header>
     `;
@@ -1140,18 +1251,23 @@
   }
 
   function renderLotteryControls() {
+    const lockToActiveMode = !state.lottery.hasDrawn;
+    const wheelDisabled = lockToActiveMode && state.lottery.activeMode !== 'wheel';
+    const gridDisabled = lockToActiveMode && state.lottery.activeMode !== 'grid';
+
     return `
       <div class="glass-card mode-switch">
         <div class="switch-track">
-          <button class="switch-item ${state.lottery.mode === 'wheel' ? 'active' : ''}" data-action="switch-lottery-mode" data-mode="wheel">三江转盘</button>
-          <button class="switch-item ${state.lottery.mode === 'grid' ? 'active' : ''}" data-action="switch-lottery-mode" data-mode="grid">青春九宫格</button>
+          <button class="switch-item ${state.lottery.mode === 'wheel' ? 'active' : ''}" data-action="switch-lottery-mode" data-mode="wheel" ${wheelDisabled ? 'disabled' : ''}>${wheelDisabled ? '三江转盘（未启用）' : '三江转盘'}</button>
+          <button class="switch-item ${state.lottery.mode === 'grid' ? 'active' : ''}" data-action="switch-lottery-mode" data-mode="grid" ${gridDisabled ? 'disabled' : ''}>${gridDisabled ? '青春九宫格（未启用）' : '青春九宫格'}</button>
         </div>
       </div>
     `;
   }
 
   function renderLotteryBoard() {
-    const wheelItems = state.lottery.config.wheel || [];
+    const wheelItems = getDimmedPrizeCollection('wheel');
+    const winningWheelIndex = getWinningPrizeIndex('wheel');
     const gridCells = getGridCells();
 
     if (state.lottery.mode === 'wheel') {
@@ -1159,11 +1275,11 @@
         <div class="surface-card wheel-panel">
           <div class="wheel-stage">
             <div class="wheel-pointer"></div>
-            <div class="wheel-body" style="transform: rotate(${state.lottery.wheelRotation}deg); transition: transform ${state.lottery.wheelDuration}ms cubic-bezier(0.18, 0.9, 0.2, 1);">
+            <div class="wheel-body" style="transform: rotate(${state.lottery.wheelRotation}deg); transition: transform ${state.lottery.wheelDuration}ms cubic-bezier(0.12, 0.85, 0.15, 1);">
               ${wheelItems.map((item, index) => {
                 const angle = Math.round((360 / wheelItems.length) * index);
                 return `
-                  <div class="wheel-prize" style="transform: translate(-50%, -50%) rotate(${angle}deg) translateY(-124px) rotate(-${angle}deg); background:${escapeHtml(item.color)}; color:${escapeHtml(item.accent)};">
+                  <div class="wheel-prize ${index === winningWheelIndex ? 'active' : ''}" style="transform: translate(-50%, -50%) rotate(${angle}deg) translateY(-124px) rotate(-${angle}deg); background:${escapeHtml(item.color)}; color:${escapeHtml(item.accent)};">
                     <span class="wheel-prize-name">${escapeHtml(item.shortLabel)}</span>
                     <span class="wheel-prize-meta">${escapeHtml(item.level)}</span>
                   </div>
@@ -1182,7 +1298,7 @@
       <div class="surface-card grid-panel">
         <div class="grid-board">
           ${gridCells.map((item) => `
-            <div class="grid-cell ${item.prizeIndex === state.lottery.gridActiveIndex ? 'active' : ''} ${item.isCenter ? 'center' : ''}">
+            <div class="grid-cell ${item.prizeIndex === state.lottery.gridActiveIndex ? 'active' : ''} ${item.prizeIndex === state.lottery.gridTrailIndex ? 'trail' : ''} ${item.isCenter ? 'center' : ''}">
               ${item.isCenter
                 ? `<button class="grid-center-btn" data-action="draw-lottery" ${state.lottery.drawing || state.lottery.hasDrawn || !state.luckyBag ? 'disabled' : ''}>${state.lottery.hasDrawn ? '已完成' : (state.lottery.drawing ? '抽取中' : (state.luckyBag ? '开始' : '待解锁'))}</button>`
                 : `<div class="grid-prize" style="background:${escapeHtml(item.color)}; color:${escapeHtml(item.accent)};">
@@ -1485,12 +1601,17 @@
   }
 
   function renderLotteryPage() {
+    const modeLabel = state.lottery.activeMode === 'grid' ? '青春九宫格' : '三江转盘';
+    const statusHint = state.lottery.hasDrawn
+      ? '你已完成本次抽奖，下方查看结果'
+      : (state.luckyBag ? `当前玩法：${modeLabel}，点击开始按钮抽奖` : '领取福袋后解锁抽奖');
+
     return `
       <section class="page-shell">
         <div class="hero-card">
-          <span class="hero-kicker">当前启用玩法</span>
+          <span class="hero-kicker">${state.lottery.hasDrawn ? '抽奖已完成' : '当前启用玩法'}</span>
           <div class="hero-title">三江青年抽奖区</div>
-          <p class="hero-desc">奖池灵感来自宜宾三江潮色与竹海律动，页面只展示当前启用的玩法，保持与小程序一致。</p>
+          <p class="hero-desc">${escapeHtml(statusHint)}</p>
         </div>
         ${renderLotteryControls()}
         ${renderLotteryBoard()}
@@ -1763,10 +1884,6 @@
   }
 
   function renderProfilePage() {
-    const switchIdentityButton = state.session.mode === 'mock' && /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname)
-      ? '<button class="secondary-btn mini-btn" data-action="switch-identity">生成预览身份</button>'
-      : '';
-
     return `
       <section class="page-shell">
         <div class="surface-card coupon-stage">
@@ -1776,7 +1893,6 @@
               <div class="profile-name">${escapeHtml(state.session.userInfo?.nickname || '三江青年用户')}</div>
               <span class="profile-phone">${escapeHtml(state.session.userInfo?.phone || '待绑定领奖手机号')}</span>
             </div>
-            ${switchIdentityButton}
           </div>
 
           <div class="summary-grid" style="margin-top: 18px;">
@@ -2005,6 +2121,11 @@
       case 'switch-lottery-mode': {
         const mode = target.dataset.mode;
         if (state.lottery.drawing) {
+          return;
+        }
+
+        if (!state.lottery.hasDrawn && mode !== state.lottery.activeMode) {
+          setToast(state.lottery.activeMode === 'grid' ? '当前仅开放青春九宫格' : '当前仅开放三江转盘');
           return;
         }
 

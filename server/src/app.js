@@ -207,7 +207,11 @@ app.use(requestLogger);
 app.use('/api/user', userRoutes);
 app.use('/api/merchant', merchantRoutes);
 app.use('/api/admin', adminRoutes);
-app.use('/h5', express.static(path.resolve(__dirname, '..', '..', 'client-h5')));
+app.use('/h5', express.static(path.resolve(__dirname, '..', '..', 'client-h5'), {
+  setHeaders: (res) => {
+    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+  }
+}));
 
 // 健康检查
 app.get('/health', (req, res) => {

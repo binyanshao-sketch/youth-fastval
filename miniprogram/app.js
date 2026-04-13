@@ -2,7 +2,7 @@ App({
   globalData: {
     userInfo: null,
     token: null,
-    baseUrl: 'https://api.yibin-youth.com',
+    baseUrl: 'https://lucky.rongzhouqingnian.cloud',
     luckyBagSnapshot: null,
     lotterySnapshot: null
   },
