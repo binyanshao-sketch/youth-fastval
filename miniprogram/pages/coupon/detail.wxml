@@ -1,0 +1,26 @@
+<view class="page-shell detail-page" wx:if="{{coupon}}">
+  <view class="surface-card detail-card">
+    <view class="detail-top">
+      <text class="detail-kicker hero-kicker">消费券详情</text>
+      <text class="detail-name">{{coupon.name}}</text>
+      <text class="detail-money">¥{{coupon.amount}}</text>
+      <text class="detail-meta">满 {{coupon.minSpend}} 可用 · {{coupon.validFrom}} 至 {{coupon.validTo}}</text>
+    </view>
+
+    <view wx:if="{{status === 1}}" class="code-panel">
+      <image class="qrcode-image" src="{{qrcodeUrl}}" mode="aspectFit"></image>
+      <text class="verify-code">{{code}}</text>
+      <text class="verify-tip">到店后向商家出示二维码或核销码即可使用</text>
+    </view>
+
+    <view wx:else class="empty-panel">{{status === 2 ? '该消费券已使用' : '该消费券已过期'}}</view>
+  </view>
+
+  <view class="glass-card detail-info">
+    <view class="section-head">
+      <text class="section-title">使用说明</text>
+      <text class="section-subtitle">到店出示二维码或核销码即可使用</text>
+    </view>
+    <text class="detail-text">{{coupon.description || '请在有效期内到支持商家核销使用。'}}</text>
+  </view>
+</view>

@@ -1,0 +1,61 @@
+.redpacket-page {
+  display: flex;
+  flex-direction: column;
+  gap: 22rpx;
+}
+
+.redpacket-hero {
+  padding: 28rpx;
+}
+
+.redpacket-kicker {
+  background: rgba(214, 74, 33, 0.12);
+  color: #c04f21;
+}
+
+.redpacket-title {
+  display: block;
+  margin-top: 18rpx;
+  font-size: 46rpx;
+  font-weight: 800;
+  color: #2f231d;
+}
+
+.redpacket-desc {
+  display: block;
+  margin-top: 10rpx;
+  font-size: 24rpx;
+  line-height: 1.8;
+  color: #8d6b59;
+}
+
+.redpacket-card {
+  padding: 24rpx;
+}
+
+.redpacket-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.redpacket-money {
+  font-size: 60rpx;
+  font-weight: 800;
+  color: #d84b20;
+}
+
+.redpacket-blessing {
+  display: block;
+  margin-top: 14rpx;
+  font-size: 26rpx;
+  line-height: 1.8;
+  color: #6e574a;
+}
+
+.redpacket-time {
+  display: block;
+  margin-top: 18rpx;
+  font-size: 22rpx;
+  color: #8d6b59;
+}

@@ -1,0 +1,53 @@
+<view class="page-shell receive-page">
+  <view class="receive-hero surface-card">
+    <text class="hero-kicker receive-kicker">第一屏 · 九选一</text>
+    <text class="receive-title">先挑一个你最想拆开的红包</text>
+    <text class="receive-desc">九个红包全部可选，选定后随机命中金额，并立刻生成青春祝福海报。页面灵感来自宜宾三江水色与竹海清风。</text>
+  </view>
+
+  <view class="bag-grid">
+    <view
+      class="bag-card {{selectedSlot === item.id ? 'active' : ''}}"
+      wx:for="{{bagOptions}}"
+      wx:key="id"
+      bindtap="onSelectBag"
+      data-index="{{item.id}}"
+    >
+      <view class="bag-knot"></view>
+      <view class="bag-body">
+        <text class="bag-icon">福</text>
+        <text class="bag-name">{{item.label}}</text>
+        <text class="bag-tag">{{item.tag}}</text>
+      </view>
+      <view class="bag-selected" wx:if="{{selectedSlot === item.id}}">已选中</view>
+    </view>
+  </view>
+
+  <view class="glass-card opening-card">
+    <view class="section-head">
+      <text class="section-title">开袋前确认</text>
+      <text class="section-subtitle">手机号用于红包发放和消费券核销</text>
+    </view>
+    <view class="tag-row">
+      <text class="tag">{{phoneBound ? '手机号已绑定' : '首次开启需绑定手机号'}}</text>
+      <text class="tag">{{selectedSlot != null ? ('已选择红包 ' + (selectedSlot + 1)) : '请先选中一个红包'}}</text>
+    </view>
+    <view class="privacy-line" bindtap="togglePrivacy">
+      <view class="privacy-check {{agreePrivacy ? 'checked' : ''}}">{{agreePrivacy ? '✓' : ''}}</view>
+      <text class="privacy-text">我已阅读并同意隐私说明</text>
+      <text class="privacy-link" bindtap="goToPrivacy">查看内容</text>
+    </view>
+    <button class="primary-btn" bindtap="onOpenBag">立即拆开这个红包</button>
+  </view>
+
+  <view wx:if="{{showPhoneSheet}}" class="sheet-mask" bindtap="closePhoneSheet">
+    <view class="sheet-panel" catchtap="noop">
+      <text class="sheet-title">绑定手机号后即可发放红包</text>
+      <text class="sheet-desc">你的红包金额已经锁定，授权成功后将进入祝福海报和抽奖页。</text>
+      <button class="primary-btn" open-type="getPhoneNumber" bindgetphonenumber="onGetPhoneNumber">
+        授权手机号并继续
+      </button>
+      <button class="secondary-btn" bindtap="closePhoneSheet">稍后再说</button>
+    </view>
+  </view>
+</view>

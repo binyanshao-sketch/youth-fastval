@@ -1,0 +1,82 @@
+.profile-page {
+  display: flex;
+  flex-direction: column;
+  gap: 22rpx;
+}
+
+.profile-hero,
+.rules-card {
+  padding: 28rpx;
+}
+
+.profile-top {
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+}
+
+.avatar {
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 30rpx;
+  background: linear-gradient(135deg, #d84b20 0%, #f6a332 100%);
+  color: #fff;
+  font-size: 42rpx;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profile-main {
+  flex: 1;
+}
+
+.profile-name {
+  display: block;
+  font-size: 34rpx;
+  font-weight: 800;
+  color: #2f231d;
+}
+
+.profile-phone {
+  display: block;
+  margin-top: 10rpx;
+  font-size: 24rpx;
+  color: #8d6b59;
+}
+
+.mini-btn {
+  width: 180rpx;
+  height: 72rpx;
+  font-size: 24rpx;
+}
+
+.profile-stats {
+  margin-top: 22rpx;
+}
+
+.menu-card {
+  padding: 24rpx;
+}
+
+.menu-title {
+  display: block;
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #2f231d;
+}
+
+.menu-desc {
+  display: block;
+  margin-top: 10rpx;
+  font-size: 24rpx;
+  line-height: 1.7;
+  color: #8d6b59;
+}
+
+.rule-text {
+  font-size: 25rpx;
+  line-height: 1.8;
+  color: #6e574a;
+}

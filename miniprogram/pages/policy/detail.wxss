@@ -1,0 +1,27 @@
+.policy-detail-page {
+  display: flex;
+  flex-direction: column;
+  gap: 22rpx;
+}
+
+.policy-detail-hero,
+.section-card {
+  padding: 28rpx;
+}
+
+.policy-detail-title {
+  display: block;
+  margin-top: 18rpx;
+  font-size: 42rpx;
+  font-weight: 800;
+  color: #2f231d;
+}
+
+.policy-detail-summary,
+.section-copy {
+  display: block;
+  margin-top: 12rpx;
+  font-size: 24rpx;
+  line-height: 1.8;
+  color: #8d6b59;
+}

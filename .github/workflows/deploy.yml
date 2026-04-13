@@ -1,0 +1,145 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: rootpass
+          MYSQL_DATABASE: yibin_youth_festival
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -prootpass"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      NODE_ENV: development
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_NAME: yibin_youth_festival
+      DB_USER: root
+      DB_PASSWORD: rootpass
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ''
+      REDIS_DB: 0
+      JWT_SECRET: github_actions_jwt_secret_1234567890
+      CORS_ORIGINS: http://localhost:5173
+      WX_USE_MOCK: true
+      WX_APPID: wx_ci_appid
+      WX_SECRET: wx_ci_secret
+      TENCENT_SECRET_ID: ci_secret_id
+      TENCENT_SECRET_KEY: ci_secret_key
+      TENCENT_SMS_APP_ID: 1400000000
+      TENCENT_SMS_TEMPLATE_ID: 1000000
+      TENCENT_SMS_SIGN: CI
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install MySQL Client
+        run: sudo apt-get update && sudo apt-get install -y mysql-client
+
+      - name: Install Server Dependencies
+        run: |
+          cd server
+          npm ci
+
+      - name: Init Test Database
+        run: mysql -h 127.0.0.1 -uroot -prootpass yibin_youth_festival < database/schema.sql
+
+      - name: Run Tests
+        run: |
+          cd server
+          npm test
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    env:
+      VITE_API_URL: https://api.yibin-youth.com/api/admin
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: admin/package-lock.json
+
+      - name: Build Admin Panel
+        run: |
+          cd admin
+          npm ci
+          npm run build
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+
+    steps:
+      - name: Deploy to Server
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: GITHUB_REF_NAME
+          script: |
+            set -e
+            cd /opt/yibin-youth-festival
+            git pull origin "$GITHUB_REF_NAME"
+            docker run --rm -v "$PWD/admin:/app" -w /app -e VITE_API_URL=https://api.yibin-youth.com/api/admin node:20-alpine sh -c "npm ci && npm run build"
+            docker-compose up -d --build
+            docker image prune -f
+            docker-compose ps
+
+      - name: Send Notification
+        if: always() && secrets.WEBHOOK_URL != ''
+        env:
+          WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
+          JOB_STATUS: ${{ job.status }}
+          REPOSITORY: ${{ github.repository }}
+          COMMIT_SHA: ${{ github.sha }}
+          BRANCH_NAME: ${{ github.ref_name }}
+        run: |
+          payload=$(cat <<EOF
+          {"msg_type":"text","content":{"text":"部署${JOB_STATUS}: ${REPOSITORY} - ${COMMIT_SHA} (${BRANCH_NAME})"}}
+          EOF
+          )
+          curl -X POST "$WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d "$payload"
+

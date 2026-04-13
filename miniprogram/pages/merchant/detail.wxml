@@ -1,0 +1,26 @@
+<view class="page-shell merchant-detail-page" wx:if="{{merchant}}">
+  <view class="surface-card detail-hero">
+    <text class="hero-kicker detail-kicker">{{merchant.category}}</text>
+    <text class="merchant-detail-title">{{merchant.name}}</text>
+    <text class="merchant-detail-desc">{{merchant.description || merchant.address}}</text>
+  </view>
+
+  <view class="glass-card info-card">
+    <view class="info-row">
+      <text class="info-label">营业时间</text>
+      <text class="info-value">{{merchant.businessHours || '以门店公示为准'}}</text>
+    </view>
+    <view class="info-row">
+      <text class="info-label">联系人员</text>
+      <text class="info-value">{{merchant.contactName || '门店客服'}}</text>
+    </view>
+    <view class="info-row">
+      <text class="info-label">详细地址</text>
+      <text class="info-value">{{merchant.address}}</text>
+    </view>
+  </view>
+
+  <view class="page-actions">
+    <button class="primary-btn" bindtap="openMap">导航到这里</button>
+  </view>
+</view>

@@ -1,0 +1,58 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/login/index",
+    "pages/lucky-bag/receive",
+    "pages/lucky-bag/result",
+    "pages/lottery/index",
+    "pages/redpacket/list",
+    "pages/coupon/list",
+    "pages/coupon/detail",
+    "pages/merchant/detail",
+    "pages/policy/index",
+    "pages/policy/detail",
+    "pages/user/profile"
+  ],
+  "window": {
+    "backgroundTextStyle": "light",
+    "navigationBarBackgroundColor": "#0d5fa8",
+    "navigationBarTitleText": "青春福袋",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#edf7fb"
+  },
+  "tabBar": {
+    "color": "#6f879a",
+    "selectedColor": "#0d5fa8",
+    "backgroundColor": "#f7fcff",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "首页",
+        "iconPath": "images/tab-home.png",
+        "selectedIconPath": "images/tab-home-active.png"
+      },
+      {
+        "pagePath": "pages/coupon/list",
+        "text": "权益",
+        "iconPath": "images/tab-coupon.png",
+        "selectedIconPath": "images/tab-coupon-active.png"
+      },
+      {
+        "pagePath": "pages/user/profile",
+        "text": "我的",
+        "iconPath": "images/tab-user.png",
+        "selectedIconPath": "images/tab-user-active.png"
+      }
+    ]
+  },
+  "style": "v2",
+  "lazyCodeLoading": "requiredComponents",
+  "sitemapLocation": "sitemap.json",
+  "permission": {
+    "scope.userLocation": {
+      "desc": "需要获取你的位置信息，用于验证是否在活动范围内"
+    }
+  },
+  "requiredPrivateInfos": ["getLocation"]
+}

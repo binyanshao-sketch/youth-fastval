@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0d5fa8">
+  <title>三江青年商家核销台</title>
+  <link rel="stylesheet" href="/merchant/css/style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- 登录页面 -->
+    <div class="page login-page" v-if="!isLoggedIn">
+      <div class="login-shell">
+        <div class="login-hero">
+          <span class="hero-kicker">青年商家核销台</span>
+          <h1>门店核销也走进三江青年路线</h1>
+          <p>登录后可查看青春券核销进度、金额统计和最近记录，适合活动门店快速操作。</p>
+        </div>
+
+        <div class="login-box glass-card">
+          <div class="logo">
+            <img src="/merchant/images/logo.png" alt="Logo">
+            <h2>三江青年商家核销台</h2>
+            <p>短信验证后即可进入门店工作台</p>
+          </div>
+
+          <form @submit.prevent="login">
+            <div class="form-group">
+              <label>门店手机号</label>
+              <input type="tel" v-model="phone" placeholder="请输入接收短信的门店手机号" maxlength="11" required>
+            </div>
+
+            <div class="form-group code-group">
+              <div class="code-input-wrap">
+                <label>验证码</label>
+                <input type="text" v-model="code" placeholder="输入登录短信验证码" maxlength="6" required>
+              </div>
+              <button type="button" class="code-btn" :disabled="countdown > 0" @click="sendCode">
+                {{ countdown > 0 ? countdown + 's' : '获取验证码' }}
+              </button>
+            </div>
+
+            <button type="submit" class="login-btn" :disabled="loading">
+              {{ loading ? '正在进入...' : '进入商家工作台' }}
+            </button>
+          </form>
+
+          <div class="login-tips">
+            <span class="tip-chip">券码核销</span>
+            <span class="tip-chip">数据看板</span>
+            <span class="tip-chip">记录回看</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 主页面 -->
+    <div class="page main-page" v-else>
+      <!-- 头部 -->
+      <header class="header glass-card">
+        <div class="merchant-head-main">
+          <span class="hero-kicker header-kicker">青年友好商家</span>
+          <div class="merchant-info">
+            <h2>{{ merchant.name }}</h2>
+            <p>{{ merchant.category }}</p>
+          </div>
+        </div>
+        <button class="logout-btn" @click="logout">退出</button>
+      </header>
+
+      <!-- 统计 -->
+      <div class="stats-box glass-card">
+        <div class="stat-item">
+          <div class="stat-value">{{ stats.todayCount }}</div>
+          <div class="stat-label">今日核销笔数</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value">¥{{ stats.todayAmount }}</div>
+          <div class="stat-label">今日核销金额</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value">{{ stats.totalCount }}</div>
+          <div class="stat-label">累计核销笔数</div>
+        </div>
+      </div>
+
+      <div class="guide-panel glass-card">
+        <div class="guide-copy">
+          <h3>当前门店核销节奏</h3>
+          <p>支持扫码或手动输入券码。核销完成后，统计看板和最近记录会立刻同步刷新。</p>
+        </div>
+        <div class="guide-tags">
+          <span class="tip-chip success">实时同步</span>
+          <span class="tip-chip">消费券核销</span>
+        </div>
+      </div>
+
+      <!-- 核销入口 -->
+      <div class="actions-box">
+        <button class="action-btn scan-btn glass-card" @click="scanCode">
+          <span class="icon">扫</span>
+          <span class="text">扫码验券</span>
+          <span class="subtext">适合到店高频核销，操作更快</span>
+        </button>
+        <button class="action-btn input-btn glass-card" @click="showInputDialog = true">
+          <span class="icon">码</span>
+          <span class="text">手动录码</span>
+          <span class="subtext">适合线下口述、转述或截图补录</span>
+        </button>
+      </div>
+
+      <!-- 核销记录 -->
+      <div class="records-box glass-card">
+        <div class="records-head">
+          <h3>最近核销流水</h3>
+          <span class="tip-chip">最近 20 条</span>
+        </div>
+        <div class="record-list" v-if="records.length">
+          <div class="record-item" v-for="record in records" :key="record.id">
+            <div class="record-left">
+              <div class="record-code">{{ record.code }}</div>
+              <div class="record-time">{{ record.time }}</div>
+            </div>
+            <div class="record-right">
+              ¥{{ record.amount }}
+            </div>
+          </div>
+        </div>
+        <div class="empty-records" v-else>暂无核销流水，完成第一笔青春券核销后会显示在这里。</div>
+      </div>
+    </div>
+
+    <!-- 手动输入弹窗 -->
+    <div class="modal" v-if="showInputDialog" @click.self="showInputDialog = false">
+      <div class="modal-content glass-card">
+        <h3>录入券码</h3>
+        <input type="text" v-model="inputCode" placeholder="请输入需要核销的消费券码" maxlength="20">
+        <div class="modal-actions">
+          <button class="cancel-btn" @click="showInputDialog = false">取消</button>
+          <button class="confirm-btn" @click="verifyCode">立即核销</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 核销结果弹窗 -->
+    <div class="modal" v-if="showResultDialog" @click.self="closeResult">
+      <div class="modal-content result-modal glass-card">
+        <div class="result-icon" :class="result.success ? 'success' : 'error'">
+          {{ result.success ? '✓' : '✗' }}
+        </div>
+        <h3>{{ result.success ? '青春券核销成功' : result.message }}</h3>
+        <div class="result-info" v-if="result.success">
+          <p>券码：{{ result.code }}</p>
+          <p>核销面额：¥{{ result.amount }}</p>
+        </div>
+        <button class="confirm-btn" @click="closeResult">确定</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
+  <script src="/merchant/js/app.js"></script>
+</body>
+</html>

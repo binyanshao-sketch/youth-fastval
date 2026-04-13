@@ -1,0 +1,265 @@
+<view class="page-shell home-page {{pageEntered ? 'page-entered' : ''}}">
+  <view class="hero home-hero surface-card stagger-item stage-1">
+    <view class="hero-orbit orbit-a"></view>
+    <view class="hero-orbit orbit-b"></view>
+    <view class="hero-badge hero-kicker">{{statusText}}</view>
+    <view class="hero-title">
+      青春福袋
+      <text class="hero-title accent">红包、海报、抽奖一屏衔接</text>
+    </view>
+    <view class="hero-desc">
+      以宜宾三江交汇和竹海风景为灵感，领取福袋后海报随机弹出，页面自动滑到抽奖区。整条链路在首页一步完成，更青春、更流畅。
+    </view>
+
+    <view class="hero-actions">
+      <button
+        class="primary-btn {{!isActive ? 'is-disabled' : ''}}"
+        disabled="{{!isActive}}"
+        bindtap="onReceiveTap"
+      >
+        {{hasReceived ? '再弹一张荣誉海报' : '领取青春福袋'}}
+      </button>
+      <button class="secondary-btn" bindtap="goToPolicy">查看青年政策福利</button>
+    </view>
+
+    <view wx:if="{{countdown}}" class="countdown glass-card">
+      <view class="section-head">
+        <text class="section-title small">开袋倒计时</text>
+        <text class="section-subtitle">活动开始后即可领取红包并解锁首页抽奖区</text>
+      </view>
+      <view class="countdown-grid">
+        <view class="count-item">
+          <text class="count-value">{{countdown.days}}</text>
+          <text class="count-label">天</text>
+        </view>
+        <view class="count-item">
+          <text class="count-value">{{countdown.hours}}</text>
+          <text class="count-label">时</text>
+        </view>
+        <view class="count-item">
+          <text class="count-value">{{countdown.minutes}}</text>
+          <text class="count-label">分</text>
+        </view>
+        <view class="count-item">
+          <text class="count-value">{{countdown.seconds}}</text>
+          <text class="count-label">秒</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="flow glass-card stagger-item stage-2">
+    <view class="section-head">
+      <text class="section-title">三江青年体验路线</text>
+      <text class="section-subtitle">领取、海报、抽奖已经串成一条完整流程</text>
+    </view>
+    <view class="flow-list">
+      <view class="flow-item">
+        <view class="flow-index">01</view>
+        <view class="flow-body">
+          <text class="flow-title">九选一领取红包</text>
+          <text class="flow-text">先在福袋页选中一个红包，再完成拆袋领取，结果会自动同步回首页。</text>
+        </view>
+      </view>
+      <view class="flow-item">
+        <view class="flow-index">02</view>
+        <view class="flow-body">
+          <text class="flow-title">随机弹出荣誉海报</text>
+          <text class="flow-text">领取完成后，系统会随机展示红包海报或分享海报，融入宜宾江景与竹影气质，形成更完整的结果仪式感。</text>
+        </view>
+      </view>
+      <view class="flow-item">
+        <view class="flow-index">03</view>
+        <view class="flow-body">
+          <text class="flow-title">停留首页继续抽奖</text>
+          <text class="flow-text">大转盘和九宫格已经并入首页，页面会自动滚动到抽奖区，无需再找入口。</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view
+    id="lottery-section"
+    class="glass-card home-lottery-shell stagger-item stage-3 {{lotterySectionPulse ? 'lottery-spotlight' : ''}}"
+  >
+    <view class="section-head section-head-stack">
+      <view>
+        <text class="section-title">&#39318;&#39029;&#25277;&#22870;&#21306;</text>
+        <text class="section-subtitle block">
+          {{hasReceived ? '\u5ba2\u6237\u7aef\u5f53\u524d\u4ec5\u5c55\u793a\u540e\u53f0\u542f\u7528\u7684' + activeModeLabel + '\u5956\u6c60\uff0c\u6253\u5f00\u9875\u9762\u53ea\u4f1a\u770b\u5230\u4e00\u79cd\u73a9\u6cd5\u3002' : '\u9886\u53d6\u9752\u6625\u798f\u888b\u540e\uff0c\u8fd9\u91cc\u4f1a\u81ea\u52a8\u89e3\u9501\u540e\u53f0\u542f\u7528\u7684\u62bd\u5956\u73a9\u6cd5\u3002'}}
+        </text>
+      </view>
+      <text class="status-chip {{hasDrawnLottery ? 'active' : 'pending'}}">{{hasDrawnLottery ? '\u5df2\u62bd\u5956' : '\u5f85\u89e3\u9501'}}</text>
+    </view>
+
+    <view wx:if="{{hasReceived}}" class="poster-quick-actions">
+      <button class="secondary-btn mini-btn" bindtap="openRandomPoster">&#38543;&#26426;&#24377;&#20986;&#28023;&#25253;</button>
+      <button class="secondary-btn mini-btn" bindtap="openSharePoster">&#20998;&#20139;&#28023;&#25253;</button>
+      <button class="secondary-btn mini-btn" bindtap="goToResult">&#26597;&#30475;&#33635;&#35465;&#21345;&#29255;</button>
+    </view>
+  </view>
+
+  <block wx:if="{{hasReceived}}">
+    <view class="glass-card mode-switch-v3 stagger-item stage-3">
+      <view class="section-head">
+        <text class="section-title small">&#24403;&#21069;&#21551;&#29992;&#29609;&#27861;</text>
+        <text class="status-chip active">{{activeModeLabel}}</text>
+      </view>
+    </view>
+
+    <view wx:if="{{mode === 'wheel'}}" class="wheel-panel surface-card lottery-stage-card stagger-item stage-4">
+      <view class="wheel-stage">
+        <view class="wheel-pointer wheel-pointer-v3"></view>
+        <view
+          class="wheel-body ring wheel-body-v3"
+          style="transform: rotate({{wheelRotation}}deg); transition: transform {{wheelDuration}}ms cubic-bezier(0.18, 0.9, 0.2, 1);"
+        >
+          <view class="wheel-prize" wx:for="{{wheelItems}}" wx:key="key" style="{{item.style}}">
+            <text class="wheel-prize-name">{{item.shortLabel}}</text>
+            <text class="wheel-prize-meta">{{item.level}}</text>
+          </view>
+        </view>
+        <button class="wheel-center primary-btn" bindtap="onDraw" disabled="{{drawing || hasDrawn}}">
+          {{hasDrawn ? '已完成' : (drawing ? '抽取中' : '开始抽奖')}}
+        </button>
+      </view>
+    </view>
+
+    <view wx:if="{{mode === 'grid'}}" class="grid-panel surface-card lottery-stage-card stagger-item stage-4">
+      <view class="grid-board">
+        <view
+          class="grid-cell {{item.prizeIndex === gridActiveIndex ? 'active' : ''}} {{item.isCenter ? 'center' : ''}}"
+          wx:for="{{gridCells}}"
+          wx:key="index"
+        >
+          <button wx:if="{{item.isCenter}}" class="grid-center-btn" bindtap="onDraw" disabled="{{drawing || hasDrawn}}">
+            {{hasDrawn ? '已完成' : (drawing ? '抽取中' : '开始抽奖')}}
+          </button>
+          <view wx:else class="grid-prize" style="background: {{item.color}}; color: {{item.accent}};">
+            <text class="grid-prize-name">{{item.shortLabel}}</text>
+            <text class="grid-prize-meta">{{item.level}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view wx:if="{{result}}" class="glass-card result-card home-result-card stagger-item stage-4">
+      <view class="section-head">
+        <text class="section-title">抽奖结果</text>
+        <text class="status-chip active">{{result.gameType === 'wheel' ? '大转盘' : '九宫格'}}</text>
+      </view>
+      <view class="result-highlight" style="background: {{result.prize.color}}; color: {{result.prize.accent}};">
+        <text class="result-name">{{result.prize.name}}</text>
+        <text class="result-value">{{result.prize.value}}</text>
+        <text class="result-message">{{result.prize.posterMessage}}</text>
+      </view>
+      <view class="page-actions compact-actions">
+        <button class="secondary-btn" bindtap="openRandomPoster">再弹一张海报</button>
+        <button class="secondary-btn" bindtap="goToResult">返回查看荣誉卡片</button>
+      </view>
+    </view>
+    <view wx:if="{{!result}}" class="empty-panel">
+      {{'\u798f\u888b\u6743\u76ca\u5df2\u7ecf\u5230\u8d26\uff0c\u73b0\u5728\u53ef\u4ee5\u76f4\u63a5\u5728\u9996\u9875\u53c2\u4e0e\u5f53\u524d\u542f\u7528\u7684' + activeModeLabel + '\u62bd\u5956\u3002'}}
+    </view>
+  </block>
+
+  <view wx:else class="empty-panel stagger-item stage-4">
+    先领取青春福袋，首页会同步解锁抽奖区、红包海报和分享海报弹窗。
+  </view>
+
+  <view wx:if="{{hasReceived}}" class="welfare glass-card stagger-item stage-4">
+    <view class="section-head">
+      <text class="section-title">我的当前权益</text>
+      <text class="section-subtitle">已领取内容可直接进入明细页</text>
+    </view>
+    <view class="list-stack">
+      <view class="list-card metric-row" bindtap="goToRedpacket">
+        <view>
+          <text class="metric-main">¥{{myRedpacket ? myRedpacket.amount : '0.00'}}</text>
+          <text class="metric-caption">微信红包 {{myRedpacket ? (myRedpacket.status === 2 ? '已发放' : '发放中') : '待发放'}}</text>
+        </view>
+        <text class="tiny-chip">查看红包</text>
+      </view>
+      <view class="list-card metric-row" bindtap="goToCoupon">
+        <view>
+          <text class="metric-main">{{myCoupons.length}}</text>
+          <text class="metric-caption">张消费券已入账</text>
+        </view>
+        <text class="tiny-chip">查看权益</text>
+      </view>
+      <view class="list-card metric-row" bindtap="goToLottery">
+        <view>
+          <text class="metric-main">{{hasDrawnLottery ? '已抽奖' : '可继续抽奖'}}</text>
+          <text class="metric-caption">独立抽奖页仍可查看完整奖池</text>
+        </view>
+        <text class="tiny-chip">查看独立页</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="section-head stagger-item stage-4">
+    <text class="section-title">活动规则</text>
+    <text class="section-subtitle">发放与使用说明</text>
+  </view>
+  <view class="list-stack stagger-item stage-4">
+    <view class="list-card" wx:for="{{activityRules}}" wx:key="index">
+      <text class="rule-text">{{index + 1}}. {{item}}</text>
+    </view>
+  </view>
+
+  <view class="quick-grid stagger-item stage-4">
+    <view class="quick-card surface-card" bindtap="goToPolicy">
+      <text class="quick-icon">策</text>
+      <text class="quick-title">政策清单</text>
+      <text class="quick-text">快速查看就业、安居和补贴支持</text>
+    </view>
+    <view class="quick-card surface-card" bindtap="goToProfile">
+      <text class="quick-icon">我</text>
+      <text class="quick-title">个人中心</text>
+      <text class="quick-text">查看红包、消费券和抽奖状态</text>
+    </view>
+  </view>
+
+  <view wx:if="{{posterPopupVisible}}" class="poster-popup">
+    <view class="poster-popup-mask" catchtap="closePosterPopup"></view>
+    <view class="poster-popup-panel" catchtap="noop">
+      <view class="poster-card poster-modal-card {{posterPopupType === 'redpacket' ? 'float-pulse' : ''}}">
+        <text class="hero-kicker poster-kicker">{{posterPopupType === 'share' ? '分享海报' : '红包海报'}}</text>
+        <text class="poster-headline">{{posterPopup.headline}}</text>
+        <text class="poster-title">{{posterPopup.title}}</text>
+        <view class="poster-amount-row">
+          <text class="poster-currency">¥</text>
+          <text class="poster-amount">{{posterPopup.amount}}</text>
+        </view>
+        <text class="poster-blessing">{{posterPopup.blessing}}</text>
+        <text class="poster-footer">{{posterPopup.footer}}</text>
+      </view>
+
+      <view class="glass-card poster-popup-actions">
+        <button wx:if="{{posterPopupType === 'share'}}" class="primary-btn" open-type="share">立即分享海报</button>
+        <button wx:else class="primary-btn" bindtap="goToResult">查看荣誉卡片</button>
+
+        <view class="poster-quick-actions">
+          <button class="secondary-btn mini-btn" bindtap="openRandomPoster">随机换一张</button>
+          <button wx:if="{{posterPopupType === 'share'}}" class="secondary-btn mini-btn" bindtap="openRedpacketPoster">切到红包海报</button>
+          <button wx:else class="secondary-btn mini-btn" bindtap="openSharePoster">切到分享海报</button>
+        </view>
+
+        <button class="secondary-btn" bindtap="closePosterPopup">收起海报</button>
+        <button class="secondary-btn mini-btn" bindtap="generateAndUploadPoster">保存并上云</button>
+      </view>
+    </view>
+  </view>
+  
+  <canvas type="2d" id="posterCanvas" style="width: 300px; height: 500px; position: fixed; left: -9999px;"></canvas>
+
+  <view wx:if="{{booting}}" class="startup-overlay">
+    <view class="startup-card">
+      <view class="startup-spinner"></view>
+      <view class="startup-copy">
+        <text class="startup-title">三江青年加载中</text>
+        <text class="startup-desc">正在进入宜宾青春福袋...</text>
+      </view>
+    </view>
+  </view>
+</view>

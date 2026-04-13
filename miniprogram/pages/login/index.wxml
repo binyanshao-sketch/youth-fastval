@@ -1,0 +1,70 @@
+<view class="login-page">
+  <view class="hero">
+    <view class="hero-title">三江青年福袋</view>
+    <view class="hero-desc">登录后领取福袋、参与抽奖</view>
+  </view>
+
+  <view class="card">
+    <!-- Tabs -->
+    <view class="tabs">
+      <view class="tab {{tab === 'password' ? 'active' : ''}}" bindtap="switchTab" data-tab="password">密码登录</view>
+      <view class="tab {{tab === 'email' ? 'active' : ''}}" bindtap="switchTab" data-tab="email">邮箱验证码</view>
+    </view>
+
+    <!-- Email -->
+    <view class="form-group">
+      <text class="form-label">邮箱</text>
+      <input class="form-input" type="text" value="{{email}}" bindinput="onEmailInput" placeholder="请输入邮箱地址" />
+    </view>
+
+    <!-- Password Tab -->
+    <block wx:if="{{tab === 'password'}}">
+      <view class="form-group">
+        <text class="form-label">密码</text>
+        <input class="form-input" type="text" password="{{true}}" value="{{password}}" bindinput="onPasswordInput" placeholder="{{isRegister ? '设置密码（至少6位）' : '请输入密码'}}" />
+      </view>
+
+      <view class="form-group" wx:if="{{isRegister}}">
+        <text class="form-label">昵称（选填）</text>
+        <input class="form-input" type="text" value="{{nickname}}" bindinput="onNicknameInput" placeholder="默认使用邮箱前缀" />
+      </view>
+
+      <button class="submit-btn" bindtap="handleSubmit" disabled="{{submitting}}">
+        {{submitting ? '处理中...' : (isRegister ? '注册' : '登录')}}
+      </button>
+
+      <view class="switch-row">
+        <text class="link-btn" bindtap="toggleRegister">{{isRegister ? '已有账号？去登录' : '没有账号？去注册'}}</text>
+      </view>
+    </block>
+
+    <!-- Email Code Tab -->
+    <block wx:else>
+      <view class="form-group">
+        <text class="form-label">验证码</text>
+        <view class="code-row">
+          <input class="form-input code-input" type="number" value="{{code}}" bindinput="onCodeInput" placeholder="6位验证码" maxlength="6" />
+          <button class="code-btn" bindtap="sendCode" disabled="{{codeSending || codeCountdown > 0}}">
+            {{codeCountdown > 0 ? codeCountdown + 's' : (codeSending ? '发送中' : '发送验证码')}}
+          </button>
+        </view>
+      </view>
+
+      <button class="submit-btn" bindtap="handleSubmit" disabled="{{submitting}}">
+        {{submitting ? '处理中...' : '登录 / 注册'}}
+      </button>
+    </block>
+
+    <!-- WeChat Login -->
+    <view class="divider">
+      <view class="divider-line"></view>
+      <text class="divider-text">或</text>
+      <view class="divider-line"></view>
+    </view>
+
+    <button class="wx-btn" bindtap="wxLogin" disabled="{{submitting}}">
+      <text class="wx-icon">微信</text>
+      <text>微信快捷登录</text>
+    </button>
+  </view>
+</view>
