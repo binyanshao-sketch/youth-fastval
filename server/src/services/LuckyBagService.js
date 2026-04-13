@@ -316,6 +316,8 @@ class LuckyBagService {
         throw error;
       }
 
+      await this.enqueueRedPacketJob(record.id);
+
       this.sendRedPacket(userId, redPacket.amount, record.id).catch((error) => {
         logger.error('异步红包发送失败', {
           userId,

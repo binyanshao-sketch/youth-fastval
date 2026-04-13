@@ -980,6 +980,14 @@ router.post('/poster/save', userAuth, async (req, res) => {
   if (!['luckybag', 'lottery'].includes(type) || !recordId || !posterUrl) {
     return res.status(400).json({ success: false, message: '无效的参数' });
   }
+
+  if (typeof posterUrl !== 'string' || posterUrl.length > 500 || !/^https?:\/\/.+/.test(posterUrl)) {
+    return res.status(400).json({ success: false, message: '海报链接格式不正确' });
+  }
+
+  if (typeof recordId !== 'number' && !/^\d+$/.test(String(recordId))) {
+    return res.status(400).json({ success: false, message: '记录ID格式不正确' });
+  }
   
   try {
     const { LotteryRecord, LuckyBagRecord } = req.models;

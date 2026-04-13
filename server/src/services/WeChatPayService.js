@@ -179,6 +179,7 @@ class WeChatPayService {
 
       const req = https.request(url, options, (res) => {
         let data = '';
+        res.on('error', reject);
         res.on('data', (chunk) => {
           data += chunk;
         });

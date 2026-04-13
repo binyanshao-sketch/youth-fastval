@@ -140,7 +140,7 @@ router.post('/verify', [
     });
   } catch (error) {
     logger.error('核销失败', { error: error.message });
-    const safeMessages = ['请输入券码', '无效的消费券码', '该消费券已被使用', '该消费券已过期', '该消费券不可使用'];
+    const safeMessages = ['请输入券码', '无效的消费券码', '该消费券已被使用', '该消费券已过期', '该消费券不可使用', '消费券不存在', '该消费券已使用', '该消费券无法在此商家使用'];
     const message = safeMessages.includes(error.message) ? error.message : '核销失败';
     res.status(400).json({ success: false, message });
   }
@@ -174,7 +174,7 @@ router.get('/records', merchantAuth, async (req, res) => {
     const merchantId = req.merchantId;
     const { page = 1, pageSize = 20 } = req.query;
     const couponService = new CouponService(req.models);
-    const result = await couponService.getMerchantVerifyRecords(merchantId, parseInt(page, 10), parseInt(pageSize, 10));
+    const result = await couponService.getMerchantVerifyRecords(merchantId, parseInt(page, 10) || 1, parseInt(pageSize, 10) || 20);
 
     res.json({
       success: true,
