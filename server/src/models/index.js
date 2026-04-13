@@ -18,7 +18,7 @@ module.exports = (sequelize) => {
     },
     openid: {
       type: DataTypes.STRING(64),
-      allowNull: false,
+      allowNull: true,
       unique: true
     },
     unionid: {
@@ -28,6 +28,15 @@ module.exports = (sequelize) => {
       type: DataTypes.STRING(11),
       allowNull: true,
       unique: true
+    },
+    email: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+      unique: true
+    },
+    password_hash: {
+      type: DataTypes.STRING(255),
+      allowNull: true
     },
     nickname: {
       type: DataTypes.STRING(50)
@@ -55,6 +64,40 @@ module.exports = (sequelize) => {
     createdAt: 'created_at',
     updatedAt: 'updated_at'
   });
+
+  // 邮箱验证码表
+  models.EmailVerifyCode = sequelize.define('EmailVerifyCode', {
+    id: {
+      type: DataTypes.BIGINT.UNSIGNED,
+      primaryKey: true,
+      autoIncrement: true
+    },
+    email: {
+      type: DataTypes.STRING(255),
+      allowNull: false
+    },
+    code: {
+      type: DataTypes.STRING(6),
+      allowNull: false
+    },
+    purpose: {
+      type: DataTypes.STRING(20),
+      defaultValue: 'login'
+    },
+    used: {
+      type: DataTypes.TINYINT,
+      defaultValue: 0
+    },
+    expires_at: {
+      type: DataTypes.DATE,
+      allowNull: false
+    }
+  }, {
+    tableName: 'email_verify_codes',
+    timestamps: true,
+    createdAt: 'created_at',
+    updatedAt: false
+  });
   
   // 红包金额池配置表
   models.RedPacketPool = sequelize.define('RedPacketPool', {
@@ -81,6 +124,10 @@ module.exports = (sequelize) => {
     },
     blessing: {
       type: DataTypes.STRING(200)
+    },
+    poster_url: {
+      type: DataTypes.STRING(500),
+      allowNull: true
     },
     status: {
       type: DataTypes.TINYINT,

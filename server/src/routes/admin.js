@@ -242,7 +242,8 @@ router.get('/dashboard', adminAuth, async (req, res) => {
           totalCount: item.total_count,
           usedCount: item.used_count,
           weight: item.weight,
-          blessing: item.blessing
+          blessing: item.blessing,
+          posterUrl: item.poster_url || ''
         })),
         latestRecords: latestRecords.map((record) => ({
           phone: record.user?.phone?.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2') || '-',
@@ -362,7 +363,8 @@ router.get('/lucky-bag/config', adminAuth, async (req, res) => {
           totalCount: item.total_count,
           usedCount: item.used_count,
           weight: item.weight,
-          blessing: item.blessing
+          blessing: item.blessing,
+          posterUrl: item.poster_url || ''
         })),
         slotPreview,
         lotteryBoards: lotteryService.getConfig(),
@@ -409,6 +411,33 @@ router.put('/lucky-bag/config', [...adminAuth, body('activityStartTime').optiona
   } catch (error) {
     logger.error('更新福袋配置失败', { error: error.message })
     res.status(500).json({ success: false, message: error.message || '保存失败' })
+  }
+})
+
+// 更新红包池某一档的海报
+router.put('/lucky-bag/pool/:id/poster', [...adminAuth,
+  body('posterUrl').isString().withMessage('posterUrl is required')
+], async (req, res) => {
+  const message = getValidationMessage(req)
+  if (message) {
+    return res.status(400).json({ success: false, message })
+  }
+  try {
+    const poolItem = await req.models.RedPacketPool.findByPk(req.params.id)
+    if (!poolItem) {
+      return res.status(404).json({ success: false, message: '红包档位不存在' })
+    }
+
+    const posterUrl = String(req.body.posterUrl || '').trim()
+    if (posterUrl && !/^https?:\/\//.test(posterUrl)) {
+      return res.status(400).json({ success: false, message: '海报链接格式无效' })
+    }
+
+    await poolItem.update({ poster_url: posterUrl || null })
+    res.json({ success: true, message: '海报已更新' })
+  } catch (error) {
+    logger.error('更新红包海报失败', { error: error.message })
+    res.status(500).json({ success: false, message: '更新失败' })
   }
 })
 

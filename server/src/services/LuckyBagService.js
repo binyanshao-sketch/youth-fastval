@@ -124,6 +124,7 @@ class LuckyBagService {
       title: '五四青年节限定祝福',
       amount,
       blessing,
+      posterUrl: redPacket.poster_url || redPacket.posterUrl || '',
       footer: this.isMockPaymentMode()
         ? '当前为测试模式，红包结果为模拟展示。'
         : '共青团宜宾市委邀你继续解锁下一重惊喜'
@@ -265,6 +266,13 @@ class LuckyBagService {
       }
 
       const redPacket = await this.redPacketAllocator.allocate();
+
+      // 查询该金额对应的海报
+      const poolRecord = await this.models.RedPacketPool.findOne({
+        where: { amount: redPacket.amount, status: 1 },
+        attributes: ['poster_url']
+      });
+      redPacket.poster_url = poolRecord?.poster_url || '';
 
       const policyConfig = await this.models.SystemConfig.findOne({
         where: { config_key: 'policy_url' }
@@ -485,9 +493,16 @@ class LuckyBagService {
       }]
     });
 
+    // 根据记录金额查找对应海报
+    const poolRecord = await this.models.RedPacketPool.findOne({
+      where: { amount: record.redpacket_amount, status: 1 },
+      attributes: ['poster_url']
+    });
+
     return {
       ...this.buildLuckyBagResponse({
         record,
+        redPacket: { poster_url: poolRecord?.poster_url || '' },
         coupons
       }),
       receivedAt: record.received_at

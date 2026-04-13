@@ -3,6 +3,7 @@ const { Op } = require('sequelize');
 const { body, validationResult } = require('express-validator');
 const QRCode = require('qrcode');
 
+const bcrypt = require('bcryptjs');
 const logger = require('../utils/logger');
 const { requireRole } = require('../middleware/auth');
 const rateLimit = require('../middleware/rateLimit');
@@ -12,6 +13,7 @@ const WeChatService = require('../services/WeChatService');
 const SMSService = require('../services/SMSService');
 const LotteryService = require('../services/LotteryService');
 const QiniuService = require('../services/QiniuService');
+const EmailService = require('../services/EmailService');
 const { requireGeofence } = require('../middleware/geofence');
 
 const router = express.Router();
@@ -173,6 +175,172 @@ router.post('/h5/login', [
   } catch (error) {
     logger.error('h5 user login failed', { error: error.message });
     res.status(500).json({ success: false, message: 'H5 登录失败' });
+  }
+});
+
+// ====== 密码注册 ======
+router.post('/auth/register', [
+  rateLimit({ windowMs: 60000, max: 10 }),
+  body('email').isEmail().withMessage('请输入有效的邮箱地址'),
+  body('password').isLength({ min: 6, max: 64 }).withMessage('密码长度需在6-64位之间'),
+  body('nickname').optional().isLength({ max: 50 }).withMessage('昵称过长')
+], async (req, res) => {
+  try {
+    const message = getValidationMessage(req);
+    if (message) {
+      return res.status(400).json({ success: false, message });
+    }
+
+    const email = req.body.email.trim().toLowerCase();
+    const existing = await req.models.User.findOne({ where: { email } });
+    if (existing) {
+      return res.status(400).json({ success: false, message: '该邮箱已被注册' });
+    }
+
+    const passwordHash = await bcrypt.hash(req.body.password, 10);
+    const user = await req.models.User.create({
+      email,
+      password_hash: passwordHash,
+      nickname: req.body.nickname || email.split('@')[0],
+      openid: `email_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      status: 1
+    });
+
+    const token = req.app.locals.jwt.sign({
+      userId: user.id,
+      role: 'user',
+      type: 'user'
+    });
+
+    res.json({
+      success: true,
+      data: { token, isNewUser: true }
+    });
+  } catch (error) {
+    logger.error('register failed', { error: error.message });
+    res.status(500).json({ success: false, message: '注册失败，请稍后再试' });
+  }
+});
+
+// ====== 密码登录 ======
+router.post('/auth/password', [
+  rateLimit({ windowMs: 60000, max: 10 }),
+  body('email').isEmail().withMessage('请输入有效的邮箱地址'),
+  body('password').notEmpty().withMessage('请输入密码')
+], async (req, res) => {
+  try {
+    const message = getValidationMessage(req);
+    if (message) {
+      return res.status(400).json({ success: false, message });
+    }
+
+    const email = req.body.email.trim().toLowerCase();
+    const user = await req.models.User.findOne({ where: { email } });
+
+    if (!user || !user.password_hash) {
+      return res.status(401).json({ success: false, message: '邮箱或密码错误' });
+    }
+
+    const valid = await bcrypt.compare(req.body.password, user.password_hash);
+    if (!valid) {
+      return res.status(401).json({ success: false, message: '邮箱或密码错误' });
+    }
+
+    if (user.status === 2) {
+      return res.status(403).json({ success: false, message: '账号已被禁用' });
+    }
+
+    const token = req.app.locals.jwt.sign({
+      userId: user.id,
+      role: 'user',
+      type: 'user'
+    });
+
+    res.json({
+      success: true,
+      data: { token, isNewUser: !user.phone }
+    });
+  } catch (error) {
+    logger.error('password login failed', { error: error.message });
+    res.status(500).json({ success: false, message: '登录失败，请稍后再试' });
+  }
+});
+
+// ====== 发送邮箱验证码 ======
+router.post('/auth/email/send', [
+  rateLimit({ windowMs: 60000, max: 3 }),
+  body('email').isEmail().withMessage('请输入有效的邮箱地址')
+], async (req, res) => {
+  try {
+    const message = getValidationMessage(req);
+    if (message) {
+      return res.status(400).json({ success: false, message });
+    }
+
+    const emailService = new EmailService(req.models);
+    const result = await emailService.sendVerifyCode(req.body.email.trim().toLowerCase());
+
+    const response = { success: true, data: { message: '验证码已发送' } };
+    if (result.mock) {
+      response.data.mockCode = result.code;
+    }
+    res.json(response);
+  } catch (error) {
+    logger.error('send email code failed', { error: error.message });
+    res.status(400).json({ success: false, message: error.message || '发送失败' });
+  }
+});
+
+// ====== 邮箱验证码登录 ======
+router.post('/auth/email/login', [
+  rateLimit({ windowMs: 60000, max: 10 }),
+  body('email').isEmail().withMessage('请输入有效的邮箱地址'),
+  body('code').isLength({ min: 6, max: 6 }).withMessage('验证码格式错误')
+], async (req, res) => {
+  try {
+    const message = getValidationMessage(req);
+    if (message) {
+      return res.status(400).json({ success: false, message });
+    }
+
+    const email = req.body.email.trim().toLowerCase();
+    const emailService = new EmailService(req.models);
+    const valid = await emailService.verifyCode(email, req.body.code);
+
+    if (!valid) {
+      return res.status(401).json({ success: false, message: '验证码错误或已过期' });
+    }
+
+    let user = await req.models.User.findOne({ where: { email } });
+    let isNewUser = false;
+
+    if (!user) {
+      user = await req.models.User.create({
+        email,
+        nickname: email.split('@')[0],
+        openid: `email_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        status: 1
+      });
+      isNewUser = true;
+    }
+
+    if (user.status === 2) {
+      return res.status(403).json({ success: false, message: '账号已被禁用' });
+    }
+
+    const token = req.app.locals.jwt.sign({
+      userId: user.id,
+      role: 'user',
+      type: 'user'
+    });
+
+    res.json({
+      success: true,
+      data: { token, isNewUser }
+    });
+  } catch (error) {
+    logger.error('email login failed', { error: error.message });
+    res.status(500).json({ success: false, message: '登录失败，请稍后再试' });
   }
 });
 
