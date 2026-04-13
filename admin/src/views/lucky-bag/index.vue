@@ -4,7 +4,7 @@
       <div class="section-heading">
         <div>
           <h3>青春福袋运营配置</h3>
-          <p>围绕九选一红包墙、随机金额、祝福海报和抽奖承接做统一配置。</p>
+          <p>统一配置活动时间、抽奖玩法、红包池与海报展示。</p>
         </div>
         <div class="chip-row">
           <span :class="config.isActive ? 'status-pill active' : 'status-pill pending'">
@@ -50,17 +50,17 @@
         <el-form-item label="每日领取上限">
           <el-input v-model="config.dailyLimit" placeholder="例如 5000" />
         </el-form-item>
-        <el-form-item label="&#25277;&#22870;&#29609;&#27861;">
+        <el-form-item label="抽奖玩法">
           <el-radio-group v-model="config.lotteryMode">
-            <el-radio-button label="wheel">&#22823;&#36716;&#30424;</el-radio-button>
-            <el-radio-button label="grid">&#20061;&#23467;&#26684;</el-radio-button>
+            <el-radio-button label="wheel">大转盘</el-radio-button>
+            <el-radio-button label="grid">九宫格</el-radio-button>
           </el-radio-group>
         </el-form-item>
         <el-form-item label="活动开关">
           <el-switch v-model="config.isActive" />
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="saveConfig">保存青春福袋配置</el-button>
+          <el-button type="primary" @click="saveConfig">保存配置</el-button>
         </el-form-item>
       </el-form>
     </div>
@@ -70,7 +70,7 @@
         <div class="section-heading">
           <div>
             <h3>九选一红包墙预览</h3>
-            <p>第一屏展示给用户的红包矩阵，用于核对运营文案。</p>
+            <p>展示给用户的九宫格位文案。</p>
           </div>
         </div>
         <div class="preview-grid">
@@ -84,17 +84,51 @@
       <div class="page-card" style="padding: 22px;">
         <div class="section-heading">
           <div>
-            <h3>红包金额池</h3>
-            <p>随机金额档位、库存和祝福语预览。</p>
+            <h3>红包金额池管理</h3>
+            <p>支持新增、编辑、停用档位，变更后自动同步库存池。</p>
           </div>
+          <el-button type="primary" @click="openCreatePoolDialog">新增档位</el-button>
         </div>
-        <div class="page-stack">
-          <div class="soft-block" v-for="item in config.redpacketPool" :key="item.id">
-            <strong>¥{{ item.amount }} · 权重 {{ item.weight }}</strong>
-            <div class="mini-note">库存 {{ item.usedCount }}/{{ item.totalCount }}</div>
-            <div class="mini-note" style="margin-top: 8px;">{{ item.blessing }}</div>
-          </div>
-        </div>
+        <el-table :data="config.redpacketPool" border>
+          <el-table-column label="金额(元)" width="120">
+            <template #default="{ row }">¥{{ formatMoney(row.amount) }}</template>
+          </el-table-column>
+          <el-table-column label="库存" width="160">
+            <template #default="{ row }">{{ row.usedCount }}/{{ row.totalCount }}</template>
+          </el-table-column>
+          <el-table-column prop="weight" label="权重" width="100" />
+          <el-table-column label="状态" width="100">
+            <template #default="{ row }">
+              <span :class="row.status === 1 ? 'status-pill active' : 'status-pill failed'">
+                {{ row.status === 1 ? '启用' : '停用' }}
+              </span>
+            </template>
+          </el-table-column>
+          <el-table-column prop="blessing" label="祝福语" min-width="220" show-overflow-tooltip />
+          <el-table-column label="操作" width="220" fixed="right">
+            <template #default="{ row }">
+              <el-button size="small" @click="openEditPoolDialog(row)">编辑</el-button>
+              <el-button
+                v-if="row.status === 1"
+                size="small"
+                type="danger"
+                plain
+                @click="disablePoolItem(row)"
+              >
+                停用
+              </el-button>
+              <el-button
+                v-else
+                size="small"
+                type="success"
+                plain
+                @click="enablePoolItem(row)"
+              >
+                启用
+              </el-button>
+            </template>
+          </el-table-column>
+        </el-table>
       </div>
     </div>
 
@@ -102,14 +136,14 @@
       <div class="section-heading">
         <div>
           <h3>红包海报配置</h3>
-          <p>每个红包金额档位对应一张专属海报，领取福袋后展示给用户。</p>
+          <p>每个红包档位可配置独立海报，领取福袋后展示给用户。</p>
         </div>
       </div>
       <div class="poster-grid">
         <div class="poster-card" v-for="item in config.redpacketPool" :key="'poster-' + item.id">
           <div class="poster-header">
-            <strong>¥{{ item.amount }}</strong>
-            <span class="mini-note">{{ item.blessing }}</span>
+            <strong>¥{{ formatMoney(item.amount) }}</strong>
+            <span class="mini-note">{{ item.status === 1 ? '启用中' : '已停用' }}</span>
           </div>
           <div class="poster-preview">
             <img v-if="item.posterUrl" :src="item.posterUrl" class="poster-img" @error="$event.target.style.display='none'" />
@@ -140,7 +174,7 @@
         <div class="section-heading">
           <div>
             <h3>大转盘奖池预览</h3>
-            <p>所见即所得地展示转盘奖项本身。</p>
+            <p>实时展示转盘奖项配置。</p>
           </div>
         </div>
         <div class="lottery-grid">
@@ -155,7 +189,7 @@
         <div class="section-heading">
           <div>
             <h3>九宫格奖池预览</h3>
-            <p>中心按钮固定为“开始”，外围展示奖项格位。</p>
+            <p>中心按钮固定为“开始”，外圈展示奖项格位。</p>
           </div>
         </div>
         <div class="board-grid">
@@ -176,7 +210,7 @@
       <div class="section-heading">
         <div>
           <h3>领取记录</h3>
-          <p>查看手机号、命中金额、所选红包位和后续抽奖结果。</p>
+          <p>查看手机号、命中金额、红包位和抽奖结果。</p>
         </div>
       </div>
 
@@ -195,7 +229,7 @@
           <template #default="{ row }">{{ row.selectedSlot == null ? '-' : row.selectedSlot + 1 }}</template>
         </el-table-column>
         <el-table-column prop="amount" label="金额" width="100">
-          <template #default="{ row }">¥{{ row.amount }}</template>
+          <template #default="{ row }">¥{{ formatMoney(row.amount) }}</template>
         </el-table-column>
         <el-table-column prop="blessing" label="祝福语" min-width="220" show-overflow-tooltip />
         <el-table-column label="红包状态" width="120">
@@ -222,12 +256,42 @@
         />
       </div>
     </div>
+
+    <el-dialog v-model="poolDialog.visible" :title="poolDialog.mode === 'create' ? '新增红包档位' : '编辑红包档位'" width="520px">
+      <el-form :model="poolForm" label-width="110px">
+        <el-form-item label="金额(元)">
+          <el-input v-model="poolForm.amount" placeholder="例如 5.20" />
+        </el-form-item>
+        <el-form-item label="总库存">
+          <el-input v-model="poolForm.totalCount" placeholder="例如 5000" />
+        </el-form-item>
+        <el-form-item label="权重">
+          <el-input v-model="poolForm.weight" placeholder="例如 100" />
+        </el-form-item>
+        <el-form-item label="祝福语">
+          <el-input v-model="poolForm.blessing" type="textarea" :rows="3" maxlength="200" show-word-limit />
+        </el-form-item>
+        <el-form-item label="状态">
+          <el-switch
+            v-model="poolForm.status"
+            :active-value="1"
+            :inactive-value="0"
+            active-text="启用"
+            inactive-text="停用"
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="poolDialog.visible = false">取消</el-button>
+        <el-button type="primary" :loading="poolDialog.saving" @click="savePoolItem">保存</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import api from '@/api'
 import { uploadToQiniu } from '@/utils/qiniuUpload'
 
@@ -247,6 +311,21 @@ const config = reactive({
   lotteryMode: 'wheel',
   isActive: false,
   redpacketPool: []
+})
+
+const poolDialog = reactive({
+  visible: false,
+  mode: 'create',
+  saving: false,
+  editingId: null
+})
+
+const poolForm = reactive({
+  amount: '',
+  totalCount: '',
+  weight: '1',
+  blessing: '',
+  status: 1
 })
 
 const lotteryModeLabel = computed(() => (
@@ -270,6 +349,99 @@ const gridPreview = computed(() => {
     return source[index]
   })
 })
+
+function formatMoney(value) {
+  const amount = Number(value)
+  return Number.isFinite(amount) ? amount.toFixed(2) : value
+}
+
+function resetPoolForm() {
+  poolForm.amount = ''
+  poolForm.totalCount = ''
+  poolForm.weight = '1'
+  poolForm.blessing = ''
+  poolForm.status = 1
+}
+
+function openCreatePoolDialog() {
+  poolDialog.mode = 'create'
+  poolDialog.editingId = null
+  resetPoolForm()
+  poolDialog.visible = true
+}
+
+function openEditPoolDialog(item) {
+  poolDialog.mode = 'edit'
+  poolDialog.editingId = item.id
+  poolForm.amount = formatMoney(item.amount)
+  poolForm.totalCount = String(item.totalCount ?? '')
+  poolForm.weight = String(item.weight ?? 1)
+  poolForm.blessing = item.blessing || ''
+  poolForm.status = Number(item.status) === 1 ? 1 : 0
+  poolDialog.visible = true
+}
+
+async function savePoolItem() {
+  const amount = Number(poolForm.amount)
+  const totalCount = Number(poolForm.totalCount)
+  const weight = Number(poolForm.weight || 1)
+  if (!Number.isFinite(amount) || amount <= 0) {
+    ElMessage.warning('请输入正确金额')
+    return
+  }
+  if (!Number.isInteger(totalCount) || totalCount <= 0) {
+    ElMessage.warning('总库存必须是正整数')
+    return
+  }
+  if (!Number.isInteger(weight) || weight <= 0) {
+    ElMessage.warning('权重必须是正整数')
+    return
+  }
+
+  const payload = {
+    amount: Number(amount.toFixed(2)),
+    totalCount,
+    weight,
+    blessing: String(poolForm.blessing || '').trim(),
+    status: poolForm.status
+  }
+
+  try {
+    poolDialog.saving = true
+    const response = poolDialog.mode === 'create'
+      ? await api.createLuckyBagPoolItem(payload)
+      : await api.updateLuckyBagPoolItem(poolDialog.editingId, payload)
+    if (response.success) {
+      ElMessage.success(poolDialog.mode === 'create' ? '红包档位已创建' : '红包档位已更新')
+      poolDialog.visible = false
+      await loadConfig()
+    }
+  } finally {
+    poolDialog.saving = false
+  }
+}
+
+async function disablePoolItem(item) {
+  try {
+    await ElMessageBox.confirm(`确认停用 ¥${formatMoney(item.amount)} 档位吗？`, '停用确认', { type: 'warning' })
+  } catch (error) {
+    return
+  }
+
+  const response = await api.deleteLuckyBagPoolItem(item.id)
+  if (response.success) {
+    ElMessage.success('红包档位已停用')
+    await loadConfig()
+  }
+}
+
+async function enablePoolItem(item) {
+  const response = await api.updateLuckyBagPoolItem(item.id, { status: 1 })
+  if (response.success) {
+    ElMessage.success('红包档位已启用')
+    await loadConfig()
+  }
+}
 
 function statusLabel(status) {
   if (status === 2) return '已到账'
@@ -344,7 +516,7 @@ async function saveConfig() {
   })
 
   if (response.success) {
-    ElMessage.success('青春福袋配置已保存')
+    ElMessage.success('福袋配置已保存')
     loadConfig()
   }
 }

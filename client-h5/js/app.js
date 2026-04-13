@@ -112,12 +112,26 @@
   let lastHomePosterKey = '';
 
   function resolveApiBase() {
+    const isLocalHost = (hostname) => hostname === 'localhost' || hostname === '127.0.0.1';
     const fromStorage = localStorage.getItem(storageKeys.apiBase);
     if (fromStorage) {
-      return fromStorage;
+      try {
+        const parsed = new URL(fromStorage, window.location.origin);
+        if (isLocalHost(parsed.hostname) && parsed.port && parsed.port !== '3000') {
+          localStorage.removeItem(storageKeys.apiBase);
+          return 'http://127.0.0.1:3000';
+        }
+        return parsed.origin;
+      } catch {
+        localStorage.removeItem(storageKeys.apiBase);
+      }
     }
 
     if (window.location.protocol.startsWith('http')) {
+      const { hostname, port } = window.location;
+      if (isLocalHost(hostname) && port && port !== '3000') {
+        return 'http://127.0.0.1:3000';
+      }
       return window.location.origin;
     }
 
@@ -1946,6 +1960,9 @@
               <div class="list-card"><div class="rule-text">${index + 1}. ${escapeHtml(item)}</div></div>
             `).join('')}
           </div>
+        </div>
+        <div class="page-actions">
+          <button class="primary-btn" data-action="logout">重新登录</button>
         </div>
       </section>
     `;

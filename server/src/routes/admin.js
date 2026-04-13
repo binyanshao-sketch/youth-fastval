@@ -2,11 +2,12 @@ const express = require('express')
 const bcrypt = require('bcryptjs')
 const dayjs = require('dayjs')
 const { Op } = require('sequelize')
-const { body, validationResult } = require('express-validator')
+const { body, param, validationResult } = require('express-validator')
 const { requireRole } = require('../middleware/auth')
 const SystemConfigService = require('../services/SystemConfigService')
 const AdminLogService = require('../services/AdminLogService')
 const LotteryService = require('../services/LotteryService')
+const RedPacketAllocator = require('../services/RedPacketAllocator')
 const QiniuService = require('../services/QiniuService')
 const rateLimit = require('../middleware/rateLimit')
 const logger = require('../utils/logger')
@@ -59,6 +60,51 @@ function buildSettingsPayload(source) {
     }
     return result
   }, {})
+}
+
+function parsePoolStatus(value) {
+  if (value === undefined || value === null) {
+    return undefined
+  }
+  if (value === 1 || value === true || value === '1' || value === 'true') {
+    return 1
+  }
+  if (value === 0 || value === false || value === '0' || value === 'false') {
+    return 0
+  }
+  throw new Error('status must be 0 or 1')
+}
+
+function mapPoolItem(item) {
+  return {
+    id: item.id,
+    amount: item.amount,
+    totalCount: item.total_count,
+    usedCount: item.used_count,
+    weight: item.weight,
+    blessing: item.blessing,
+    posterUrl: item.poster_url || '',
+    status: item.status
+  }
+}
+
+async function syncRedisRedPacketPool(models, redis) {
+  if (!redis) {
+    return
+  }
+
+  const poolConfig = await models.RedPacketPool.findAll({
+    where: { status: 1 },
+    order: [['amount', 'ASC']]
+  })
+
+  const allocator = new RedPacketAllocator(redis)
+  if (poolConfig.length === 0) {
+    await redis.del(allocator.poolKey, allocator.statsKey)
+    return
+  }
+
+  await allocator.initPool(poolConfig.map((item) => item.toJSON()))
 }
 
 const settingsValidators = [
@@ -332,8 +378,7 @@ router.get('/lucky-bag/config', adminAuth, async (req, res) => {
     const configMap = await configService.getConfigMap()
     const lotteryService = new LotteryService(req.models)
     const redpacketPool = await req.models.RedPacketPool.findAll({
-      where: { status: 1 },
-      order: [['amount', 'ASC']]
+      order: [['status', 'DESC'], ['amount', 'ASC'], ['id', 'ASC']]
     })
 
     const [receivedCount, sentCount, pendingCount] = await Promise.all([
@@ -357,15 +402,7 @@ router.get('/lucky-bag/config', adminAuth, async (req, res) => {
         dailyLimit: configMap.daily_limit || '',
         lotteryMode: ['wheel', 'grid'].includes(configMap.lottery_mode) ? configMap.lottery_mode : 'wheel',
         isActive: configMap.is_active === 'true',
-        redpacketPool: redpacketPool.map((item) => ({
-          id: item.id,
-          amount: item.amount,
-          totalCount: item.total_count,
-          usedCount: item.used_count,
-          weight: item.weight,
-          blessing: item.blessing,
-          posterUrl: item.poster_url || ''
-        })),
+        redpacketPool: redpacketPool.map((item) => mapPoolItem(item)),
         slotPreview,
         lotteryBoards: lotteryService.getConfig(),
         overview: {
@@ -415,6 +452,166 @@ router.put('/lucky-bag/config', [...adminAuth, body('activityStartTime').optiona
 })
 
 // 更新红包池某一档的海报
+router.post('/lucky-bag/pool', [...adminAuth,
+  body('amount').isFloat({ gt: 0 }).withMessage('amount must be greater than 0'),
+  body('totalCount').isInt({ gt: 0, lt: 100000000 }).withMessage('totalCount is invalid'),
+  body('weight').optional({ nullable: true }).isInt({ gt: 0, lt: 100000000 }).withMessage('weight is invalid'),
+  body('blessing').optional({ nullable: true }).isLength({ max: 200 }).withMessage('blessing is too long'),
+  body('posterUrl').optional({ nullable: true }).custom(isValidHttpUrl).withMessage('posterUrl is invalid'),
+  body('status').optional().custom((value) => {
+    parsePoolStatus(value)
+    return true
+  })
+], async (req, res) => {
+  const message = getValidationMessage(req)
+  if (message) {
+    return res.status(400).json({ success: false, message })
+  }
+
+  try {
+    const { RedPacketPool } = req.models
+    const amount = Number(req.body.amount)
+    const totalCount = parseInt(req.body.totalCount, 10)
+    const weight = req.body.weight === undefined || req.body.weight === null || req.body.weight === ''
+      ? 1
+      : parseInt(req.body.weight, 10)
+    const blessing = req.body.blessing == null ? '' : String(req.body.blessing).trim()
+    const posterUrl = req.body.posterUrl == null ? null : String(req.body.posterUrl).trim() || null
+    const parsedStatus = parsePoolStatus(req.body.status)
+    const status = parsedStatus === undefined ? 1 : parsedStatus
+
+    if (status === 1) {
+      const duplicate = await RedPacketPool.findOne({ where: { amount, status: 1 } })
+      if (duplicate) {
+        return res.status(400).json({ success: false, message: 'amount already exists in active pool' })
+      }
+    }
+
+    const item = await RedPacketPool.create({
+      amount,
+      total_count: totalCount,
+      used_count: 0,
+      weight,
+      blessing,
+      poster_url: posterUrl,
+      status
+    })
+
+    await syncRedisRedPacketPool(req.models, req.app.locals.redis)
+    res.json({ success: true, data: mapPoolItem(item), message: 'created' })
+  } catch (error) {
+    logger.error('创建红包池档位失败', { error: error.message })
+    res.status(500).json({ success: false, message: '创建失败' })
+  }
+})
+
+router.put('/lucky-bag/pool/:id', [...adminAuth,
+  param('id').isInt({ min: 1 }).withMessage('pool id is invalid'),
+  body('amount').optional().isFloat({ gt: 0 }).withMessage('amount must be greater than 0'),
+  body('totalCount').optional().isInt({ gt: 0, lt: 100000000 }).withMessage('totalCount is invalid'),
+  body('weight').optional({ nullable: true }).isInt({ gt: 0, lt: 100000000 }).withMessage('weight is invalid'),
+  body('blessing').optional({ nullable: true }).isLength({ max: 200 }).withMessage('blessing is too long'),
+  body('posterUrl').optional({ nullable: true }).custom(isValidHttpUrl).withMessage('posterUrl is invalid'),
+  body('status').optional().custom((value) => {
+    parsePoolStatus(value)
+    return true
+  }),
+  body().custom((value) => {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      throw new Error('invalid payload')
+    }
+    const allowed = ['amount', 'totalCount', 'weight', 'blessing', 'posterUrl', 'status']
+    const hasAtLeastOne = allowed.some((key) => Object.prototype.hasOwnProperty.call(value, key))
+    if (!hasAtLeastOne) {
+      throw new Error('no fields to update')
+    }
+    return true
+  })
+], async (req, res) => {
+  const message = getValidationMessage(req)
+  if (message) {
+    return res.status(400).json({ success: false, message })
+  }
+
+  try {
+    const { RedPacketPool } = req.models
+    const poolItem = await RedPacketPool.findByPk(req.params.id)
+    if (!poolItem) {
+      return res.status(404).json({ success: false, message: '红包档位不存在' })
+    }
+
+    const payload = {}
+    if (Object.prototype.hasOwnProperty.call(req.body, 'amount')) {
+      payload.amount = Number(req.body.amount)
+    }
+    if (Object.prototype.hasOwnProperty.call(req.body, 'totalCount')) {
+      payload.total_count = parseInt(req.body.totalCount, 10)
+    }
+    if (Object.prototype.hasOwnProperty.call(req.body, 'weight')) {
+      payload.weight = parseInt(req.body.weight, 10)
+    }
+    if (Object.prototype.hasOwnProperty.call(req.body, 'blessing')) {
+      payload.blessing = req.body.blessing == null ? '' : String(req.body.blessing).trim()
+    }
+    if (Object.prototype.hasOwnProperty.call(req.body, 'posterUrl')) {
+      payload.poster_url = req.body.posterUrl == null ? null : String(req.body.posterUrl).trim() || null
+    }
+    if (Object.prototype.hasOwnProperty.call(req.body, 'status')) {
+      payload.status = parsePoolStatus(req.body.status)
+    }
+
+    const nextTotalCount = payload.total_count ?? poolItem.total_count
+    if (Number(nextTotalCount) < Number(poolItem.used_count)) {
+      return res.status(400).json({ success: false, message: 'totalCount cannot be less than usedCount' })
+    }
+
+    const nextStatus = payload.status ?? poolItem.status
+    const nextAmount = payload.amount ?? poolItem.amount
+    if (Number(nextStatus) === 1) {
+      const duplicate = await RedPacketPool.findOne({
+        where: {
+          amount: nextAmount,
+          status: 1,
+          id: { [Op.ne]: poolItem.id }
+        }
+      })
+      if (duplicate) {
+        return res.status(400).json({ success: false, message: 'amount already exists in active pool' })
+      }
+    }
+
+    await poolItem.update(payload)
+    await syncRedisRedPacketPool(req.models, req.app.locals.redis)
+    res.json({ success: true, data: mapPoolItem(poolItem), message: 'updated' })
+  } catch (error) {
+    logger.error('更新红包池档位失败', { error: error.message })
+    res.status(500).json({ success: false, message: '更新失败' })
+  }
+})
+
+router.delete('/lucky-bag/pool/:id', [...adminAuth,
+  param('id').isInt({ min: 1 }).withMessage('pool id is invalid')
+], async (req, res) => {
+  const message = getValidationMessage(req)
+  if (message) {
+    return res.status(400).json({ success: false, message })
+  }
+
+  try {
+    const poolItem = await req.models.RedPacketPool.findByPk(req.params.id)
+    if (!poolItem) {
+      return res.status(404).json({ success: false, message: '红包档位不存在' })
+    }
+
+    await poolItem.update({ status: 0 })
+    await syncRedisRedPacketPool(req.models, req.app.locals.redis)
+    res.json({ success: true, message: 'disabled', data: mapPoolItem(poolItem) })
+  } catch (error) {
+    logger.error('停用红包池档位失败', { error: error.message })
+    res.status(500).json({ success: false, message: '停用失败' })
+  }
+})
+
 router.put('/lucky-bag/pool/:id/poster', [...adminAuth,
   body('posterUrl').isString().withMessage('posterUrl is required')
 ], async (req, res) => {

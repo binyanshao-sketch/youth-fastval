@@ -18,15 +18,29 @@ class RedPacketAllocator {
   async initPool(poolConfig) {
     const pipeline = this.redis.pipeline();
     pipeline.del(this.poolKey);
+    pipeline.del(this.statsKey);
+    let totalAllocated = 0;
+    let totalAmount = 0;
 
     for (const item of poolConfig) {
+      const usedCount = Number(item.used_count || 0);
+      const amountNumber = Number(item.amount || 0);
+      totalAllocated += usedCount;
+      if (Number.isFinite(amountNumber)) {
+        totalAmount += amountNumber * usedCount;
+      }
       pipeline.hset(this.poolKey, item.amount, JSON.stringify({
         total: item.total_count,
-        used: 0,
+        used: usedCount,
         weight: item.weight,
         blessing: item.blessing
       }));
     }
+
+    pipeline.hset(this.statsKey, {
+      total_allocated: String(totalAllocated),
+      total_amount: Number(totalAmount.toFixed(2))
+    });
 
     const results = await pipeline.exec();
     for (const [err] of results) {

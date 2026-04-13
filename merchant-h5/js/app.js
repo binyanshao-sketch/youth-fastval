@@ -4,6 +4,10 @@ const { createApp } = Vue
 const API_URL = (() => {
   const meta = document.querySelector('meta[name="api-base"]')
   if (meta && meta.content) return meta.content.replace(/\/+$/, '') + '/api/merchant'
+  const { hostname, port } = window.location
+  if ((hostname === 'localhost' || hostname === '127.0.0.1') && port && port !== '3000') {
+    return 'http://127.0.0.1:3000/api/merchant'
+  }
   return `${window.location.protocol}//${window.location.host}/api/merchant`
 })()
 

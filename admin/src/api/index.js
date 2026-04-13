@@ -14,6 +14,9 @@ export default {
   getLuckyBagRecords: (params) => request.get('/lucky-bag/records', { params }),
   getLuckyBagConfig: () => request.get('/lucky-bag/config'),
   updateLuckyBagConfig: (data) => request.put('/lucky-bag/config', data),
+  createLuckyBagPoolItem: (data) => request.post('/lucky-bag/pool', data),
+  updateLuckyBagPoolItem: (id, data) => request.put(`/lucky-bag/pool/${id}`, data),
+  deleteLuckyBagPoolItem: (id) => request.delete(`/lucky-bag/pool/${id}`),
   updatePoolPoster: (id, posterUrl) => request.put(`/lucky-bag/pool/${id}/poster`, { posterUrl }),
 
   getCoupons: (params) => request.get('/coupons', { params }),
