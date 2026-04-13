@@ -191,6 +191,9 @@ class WeChatPayService {
         });
       });
 
+      req.setTimeout(15000, () => {
+        req.destroy(new Error('微信支付请求超时(15s)'));
+      });
       req.on('error', reject);
       req.write(xml);
       req.end();

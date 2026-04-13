@@ -1,4 +1,5 @@
 const express = require('express');
+const crypto = require('crypto');
 const { Op } = require('sequelize');
 const { body, validationResult } = require('express-validator');
 const QRCode = require('qrcode');
@@ -493,7 +494,7 @@ router.post('/sms/send', [
       return res.status(429).json({ success: false, message: `请 ${ttl} 秒后再次发送` });
     }
 
-    const code = String(Math.floor(100000 + Math.random() * 900000));
+    const code = String(crypto.randomInt(100000, 1000000));
     await req.redis.set(`sms:code:${phone}`, code, 'EX', 300);
     await req.redis.set(cooldownKey, '1', 'EX', 60);
 
@@ -533,7 +534,9 @@ router.post('/sms/login', [
     }
 
     const storedCode = await req.redis.get(`sms:code:${phone}`);
-    if (!storedCode || storedCode !== code) {
+    const codeMatch = storedCode && storedCode.length === code.length &&
+      crypto.timingSafeEqual(Buffer.from(storedCode), Buffer.from(code));
+    if (!codeMatch) {
       const newAttempts = await req.redis.incr(attemptKey);
       if (newAttempts === 1) await req.redis.expire(attemptKey, 300);
       return res.status(400).json({ success: false, message: '验证码不正确或已过期' });
@@ -600,7 +603,9 @@ router.post('/sms/bind-phone', [
     }
 
     const storedCode = await req.redis.get(`sms:code:${phone}`);
-    if (!storedCode || storedCode !== code) {
+    const codeMatch = storedCode && storedCode.length === code.length &&
+      crypto.timingSafeEqual(Buffer.from(storedCode), Buffer.from(code));
+    if (!codeMatch) {
       const newAttempts = await req.redis.incr(attemptKey);
       if (newAttempts === 1) await req.redis.expire(attemptKey, 300);
       return res.status(400).json({ success: false, message: '验证码不正确或已过期' });
@@ -977,8 +982,8 @@ router.post('/poster/save', userAuth, async (req, res) => {
   }
   
   try {
-    const { LotteryRecord, LuckyBagRecord } = require('../models');
-    
+    const { LotteryRecord, LuckyBagRecord } = req.models;
+
     if (type === 'lottery') {
       const record = await LotteryRecord.findOne({ where: { id: recordId, user_id: req.userId } });
       if (!record) return res.status(404).json({ success: false, message: '未找到该抽奖记录' });

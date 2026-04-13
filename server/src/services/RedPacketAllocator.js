@@ -28,7 +28,12 @@ class RedPacketAllocator {
       }));
     }
 
-    await pipeline.exec();
+    const results = await pipeline.exec();
+    for (const [err] of results) {
+      if (err) {
+        throw new Error(`红包池初始化失败: ${err.message}`);
+      }
+    }
     return true;
   }
 
@@ -126,14 +131,25 @@ class RedPacketAllocator {
     const status = [];
 
     for (const [amount, configStr] of Object.entries(pool)) {
-      const config = JSON.parse(configStr);
-      status.push({
-        amount: parseFloat(amount),
-        total: config.total,
-        used: config.used,
-        remaining: config.total - config.used,
-        weight: config.weight
-      });
+      try {
+        const config = JSON.parse(configStr);
+        status.push({
+          amount: parseFloat(amount),
+          total: config.total,
+          used: config.used,
+          remaining: config.total - config.used,
+          weight: config.weight
+        });
+      } catch {
+        status.push({
+          amount: parseFloat(amount),
+          total: 0,
+          used: 0,
+          remaining: 0,
+          weight: 0,
+          error: '数据解析失败'
+        });
+      }
     }
 
     return status;
