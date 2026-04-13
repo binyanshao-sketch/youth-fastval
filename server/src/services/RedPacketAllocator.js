@@ -11,6 +11,10 @@ class RedPacketAllocator {
     this.statsKey = 'redpacket:stats';
   }
 
+  isRedisMockMode() {
+    return process.env.REDIS_MOCK === 'true';
+  }
+
   /**
    * 初始化红包池到Redis
    * @param {Array} poolConfig 红包配置
@@ -62,6 +66,10 @@ class RedPacketAllocator {
    * @returns {Object} { amount, blessing }
    */
   async allocate() {
+    if (this.isRedisMockMode()) {
+      return this.allocateWithMock();
+    }
+
     // Lua 脚本：原子性加权随机分配 + 库存扣减
     const luaScript = `
       local poolKey = KEYS[1]
@@ -144,6 +152,10 @@ class RedPacketAllocator {
    * @param {string|number} amount 红包面额键
    */
   async release(amount) {
+    if (this.isRedisMockMode()) {
+      return this.releaseWithMock(amount);
+    }
+
     const amountKey = String(amount);
     const amountNumber = Number(amountKey);
     if (!Number.isFinite(amountNumber)) {
@@ -195,6 +207,85 @@ class RedPacketAllocator {
     return true;
   }
 
+  async allocateWithMock() {
+    const pool = await this.redis.hgetall(this.poolKey);
+    const available = [];
+    let totalScore = 0;
+
+    for (const [amount, configStr] of Object.entries(pool)) {
+      const config = JSON.parse(configStr);
+      const remaining = Number(config.total) - Number(config.used || 0);
+      if (remaining <= 0) {
+        continue;
+      }
+
+      const score = Number(config.weight || 1) * remaining;
+      totalScore += score;
+      available.push({ amount, config, score });
+    }
+
+    if (available.length === 0 || totalScore <= 0) {
+      throw new Error('NO_STOCK');
+    }
+
+    const random = Math.random() * totalScore;
+    let cursor = 0;
+    let selected = available[0];
+    for (const item of available) {
+      cursor += item.score;
+      if (random <= cursor) {
+        selected = item;
+        break;
+      }
+    }
+
+    selected.config.used = Number(selected.config.used || 0) + 1;
+    await this.redis.hset(this.poolKey, selected.amount, JSON.stringify(selected.config));
+    await this.redis.hincrby(this.statsKey, 'total_allocated', 1);
+    await this.redis.hincrbyfloat(this.statsKey, 'total_amount', Number(selected.amount));
+
+    return {
+      amount: parseFloat(selected.amount),
+      amountKey: String(selected.amount),
+      blessing: selected.config.blessing
+    };
+  }
+
+  async releaseWithMock(amount) {
+    const amountKey = String(amount);
+    const amountNumber = Number(amountKey);
+    if (!Number.isFinite(amountNumber)) {
+      throw new Error('INVALID_AMOUNT');
+    }
+
+    const configStr = await this.redis.hget(this.poolKey, amountKey);
+    if (!configStr) {
+      throw new Error('AMOUNT_NOT_FOUND');
+    }
+
+    const config = JSON.parse(configStr);
+    if (Number(config.used || 0) <= 0) {
+      throw new Error('USED_EMPTY');
+    }
+
+    config.used = Number(config.used) - 1;
+    await this.redis.hset(this.poolKey, amountKey, JSON.stringify(config));
+
+    const totalAllocated = Number(await this.redis.hget(this.statsKey, 'total_allocated') || '0');
+    if (totalAllocated > 0) {
+      await this.redis.hincrby(this.statsKey, 'total_allocated', -1);
+    }
+
+    const totalAmount = Number(await this.redis.hget(this.statsKey, 'total_amount') || '0');
+    if (totalAmount >= amountNumber) {
+      await this.redis.hincrbyfloat(this.statsKey, 'total_amount', -amountNumber);
+    } else {
+      await this.redis.hset(this.statsKey, 'total_amount', 0);
+    }
+
+    return true;
+  }
+
   /**
    * 获取红包池状态
    */
@@ -231,6 +322,14 @@ class RedPacketAllocator {
    * 检查库存是否充足（使用 Lua 原子检查避免多次网络往返）
    */
   async hasStock() {
+    if (this.isRedisMockMode()) {
+      const pool = await this.redis.hgetall(this.poolKey);
+      return Object.values(pool).some((configStr) => {
+        const config = JSON.parse(configStr);
+        return Number(config.used || 0) < Number(config.total || 0);
+      });
+    }
+
     const luaScript = `
       local pool = redis.call('HGETALL', KEYS[1])
       if not pool or #pool == 0 then

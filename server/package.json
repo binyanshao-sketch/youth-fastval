@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node src/app.js",
     "dev": "nodemon src/app.js",
+    "dev:runtime": "node scripts/dev-runtime-server.js",
     "test": "jest",
     "create:admin": "node scripts/create-admin.js",
     "smoke:admin": "node scripts/admin-smoke.js",

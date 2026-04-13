@@ -11,6 +11,10 @@ const logger = require('../utils/logger');
 
 class LuckyBagService {
   async enqueueRedPacketJob(recordId) {
+    if (this.shouldSkipRedPacketPayment()) {
+      return;
+    }
+
     await this.models.sequelize.query(`
       INSERT INTO redpacket_jobs (lucky_bag_record_id, status, attempts, next_retry_at)
       VALUES (?, 'pending', 0, NOW())
@@ -22,6 +26,10 @@ class LuckyBagService {
   }
 
   async markRedPacketJob(recordId, status, errorMessage = null) {
+    if (this.shouldSkipRedPacketPayment()) {
+      return;
+    }
+
     await this.models.sequelize.query(`
       UPDATE redpacket_jobs
       SET status = ?,
@@ -33,6 +41,10 @@ class LuckyBagService {
   }
 
   async scheduleRedPacketRetry(recordId, errorMessage, attempts) {
+    if (this.shouldSkipRedPacketPayment()) {
+      return;
+    }
+
     const cappedAttempts = Number(attempts) || 0;
     const delayMinutes = Math.min(30, Math.max(1, 2 ** cappedAttempts));
     await this.models.sequelize.query(`
@@ -47,6 +59,10 @@ class LuckyBagService {
   }
 
   async processPendingRedPacketJobs(limit = 20) {
+    if (this.shouldSkipRedPacketPayment()) {
+      return;
+    }
+
     const [jobs] = await this.models.sequelize.query(`
       SELECT id, lucky_bag_record_id, attempts
       FROM redpacket_jobs
@@ -82,6 +98,17 @@ class LuckyBagService {
     return process.env.WX_USE_MOCK === 'true';
   }
 
+  shouldSkipRedPacketPayment() {
+    return process.env.SKIP_REDPACKET_PAYMENT === 'true';
+  }
+
+  getPaymentMode() {
+    if (this.shouldSkipRedPacketPayment()) {
+      return 'skip';
+    }
+    return this.isMockPaymentMode() ? 'mock' : 'live';
+  }
+
   buildDelivery(status) {
     const isMockMode = this.isMockPaymentMode();
     const mapping = {
@@ -110,7 +137,7 @@ class LuckyBagService {
 
     return {
       channel: isMockMode ? '测试模拟通道' : '微信零钱',
-      mode: isMockMode ? 'mock' : 'live',
+      mode: this.getPaymentMode(),
       ...(mapping[status] || mapping[1])
     };
   }
@@ -139,7 +166,7 @@ class LuckyBagService {
         blessing: redPacket?.blessing || record?.redpacket_blessing || '',
         status: record?.redpacket_status ?? 1,
         sentAt: record?.redpacket_sent_at || null,
-        mode: this.isMockPaymentMode() ? 'mock' : 'live'
+        mode: this.getPaymentMode()
       },
       coupons: (coupons || []).map((item) => {
         if (item.coupon) {
@@ -439,6 +466,26 @@ class LuckyBagService {
   }
 
   async sendRedPacket(userId, amount, recordId) {
+    if (this.shouldSkipRedPacketPayment()) {
+      const orderNo = `RP${Date.now()}${crypto.randomBytes(4).toString('hex')}`;
+      await this.markRedPacketJob(recordId, 'processing');
+      await this.models.LuckyBagRecord.update({
+        redpacket_order_no: orderNo,
+        redpacket_status: 2,
+        redpacket_sent_at: new Date()
+      }, {
+        where: { id: recordId }
+      });
+      await this.markRedPacketJob(recordId, 'success');
+      return {
+        success: true,
+        orderNo,
+        amount,
+        paymentNo: null,
+        paymentTime: new Date().toISOString(),
+        mode: 'skip'
+      };
+    }
     const user = await this.models.User.findByPk(userId);
     if (!user || !user.openid) {
       throw new Error('用户信息不完整');
@@ -483,7 +530,7 @@ class LuckyBagService {
       amount,
       paymentNo: result.data?.paymentNo || null,
       paymentTime: result.data?.paymentTime || null,
-      mode: this.isMockPaymentMode() ? 'mock' : 'live'
+      mode: this.getPaymentMode()
     };
   }
 
