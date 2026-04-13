@@ -286,6 +286,7 @@ app.use(errorHandler);
 // ============================================
 const PORT = process.env.PORT || 3000;
 let server;
+let stopRetryWorker = null;
 
 if (require.main === module) {
   (async () => {
@@ -298,6 +299,9 @@ if (require.main === module) {
       await redis.ping();
       logger.info('数据库连接成功');
       logger.info('Redis连接成功');
+
+      stopRetryWorker = startRedpacketRetryWorker(app);
+      logger.info('红包补偿任务 worker 已启动');
 
       server = app.listen(PORT, () => {
         logger.info(`服务器运行在端口 ${PORT}`, {
@@ -323,6 +327,9 @@ async function gracefulShutdown(signal) {
   logger.info(`收到 ${signal} 信号，正在关闭...`);
 
   try {
+    if (stopRetryWorker) {
+      stopRetryWorker();
+    }
     if (server) {
       await new Promise(resolve => server.close(resolve));
     }

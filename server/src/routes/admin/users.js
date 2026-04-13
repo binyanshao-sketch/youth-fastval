@@ -30,6 +30,7 @@ router.get('/', adminAuth, async (req, res) => {
 
     const { count, rows } = await User.findAndCountAll({
       where,
+      attributes: { exclude: ['password_hash'] },
       order: [['created_at', 'DESC']],
       limit: pageSizeNumber,
       offset: (pageNumber - 1) * pageSizeNumber
@@ -53,7 +54,9 @@ router.get('/', adminAuth, async (req, res) => {
 router.get('/:id', adminAuth, async (req, res) => {
   try {
     const { User } = req.models
-    const user = await User.findByPk(req.params.id)
+    const user = await User.findByPk(req.params.id, {
+      attributes: { exclude: ['password_hash'] }
+    })
 
     if (!user) {
       return res.status(404).json({ success: false, message: '用户不存在' })

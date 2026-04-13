@@ -103,8 +103,9 @@ class SMSService {
       const response = await this.getClient().SendSms(params);
 
       const failedPhones = response.SendStatusSet
-        .filter(s => s.Code !== 'Ok')
-        .map((s, i) => phones[i]);
+        .map((s, i) => ({ status: s, index: i }))
+        .filter(item => item.status.Code !== 'Ok')
+        .map(item => phones[item.index]);
       
       if (failedPhones.length === 0) {
         return { success: true };

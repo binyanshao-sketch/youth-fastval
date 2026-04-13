@@ -363,6 +363,9 @@ class LotteryService {
         const existingRecord = await this.models.LotteryRecord.findOne({
           where: { user_id: userId }
         });
+        if (!existingRecord) {
+          throw new Error('抽奖记录异常，请稍后重试');
+        }
         return this.formatRecord(existingRecord);
       }
       throw error;

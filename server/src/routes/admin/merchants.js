@@ -120,7 +120,7 @@ router.put('/:id', adminWriteAuth, [param('id').isInt({ min: 1 }).withMessage('å
   }
 })
 
-router.post('/:id/verify', adminAuth, async (req, res) => {
+router.post('/:id/verify', adminWriteAuth, async (req, res) => {
   try {
     const { Merchant } = req.models
     const merchant = await Merchant.findByPk(req.params.id)
