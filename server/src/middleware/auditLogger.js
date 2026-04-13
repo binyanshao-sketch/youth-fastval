@@ -62,7 +62,7 @@ function buildDetail(req, res, duration) {
 module.exports = (req, res, next) => {
   const start = Date.now();
 
-  res.on('finish', async () => {
+  res.once('finish', async () => {
     if (!AUDIT_METHODS.has(req.method)) {
       return;
     }

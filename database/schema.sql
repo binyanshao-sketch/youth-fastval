@@ -31,6 +31,7 @@ CREATE TABLE `redpacket_pool` (
   `used_count` INT DEFAULT 0,
   `weight` INT DEFAULT 1,
   `blessing` VARCHAR(200) DEFAULT NULL,
+  `poster_url` VARCHAR(500) DEFAULT NULL,
   `status` TINYINT DEFAULT 1,
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -54,6 +55,7 @@ CREATE TABLE `lucky_bag_records` (
   `redpacket_sent_at` DATETIME DEFAULT NULL,
   `policy_url` VARCHAR(255) DEFAULT NULL,
   `selected_slot` TINYINT DEFAULT NULL,
+  `poster_url` VARCHAR(255) DEFAULT NULL,
   `received_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `ip` VARCHAR(50) DEFAULT NULL,
   `user_agent` VARCHAR(500) DEFAULT NULL,
@@ -131,9 +133,11 @@ CREATE TABLE `lottery_records` (
   `prize_value` VARCHAR(100) DEFAULT NULL,
   `poster_title` VARCHAR(100) DEFAULT NULL,
   `poster_message` VARCHAR(255) DEFAULT NULL,
+  `poster_url` VARCHAR(255) DEFAULT NULL,
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_lottery_user_id` (`user_id`)
+  UNIQUE KEY `uk_lottery_user_id` (`user_id`),
+  KEY `idx_lottery_records_created_at` (`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE `verify_records` (
@@ -148,6 +152,7 @@ CREATE TABLE `verify_records` (
   PRIMARY KEY (`id`),
   KEY `idx_verify_records_user_coupon_id` (`user_coupon_id`),
   KEY `idx_verify_records_merchant_id` (`merchant_id`),
+  KEY `idx_verify_records_user_id` (`user_id`),
   KEY `idx_verify_records_verified_at` (`verified_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 

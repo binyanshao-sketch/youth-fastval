@@ -87,10 +87,10 @@ router.get('/summary', adminAuth, async (req, res) => {
     res.json({
       success: true,
       data: {
-        redPacketIssued: redPacketIssued.toFixed(2),
-        redPacketWithdrawn: redPacketWithdrawn.toFixed(2),
-        couponTotal: couponTotal.toFixed(2),
-        totalExpense: (redPacketWithdrawn + couponTotal).toFixed(2)
+        redPacketIssued: Number(redPacketIssued).toFixed(2),
+        redPacketWithdrawn: Number(redPacketWithdrawn).toFixed(2),
+        couponTotal: Number(couponTotal).toFixed(2),
+        totalExpense: (Math.round((redPacketWithdrawn + couponTotal) * 100) / 100).toFixed(2)
       }
     })
   } catch (error) {

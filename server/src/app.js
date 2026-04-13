@@ -191,8 +191,8 @@ app.locals.redis = redis;
 // JWT 配置（不再使用硬编码回退值）
 // ============================================
 app.locals.jwt = {
-  sign: (payload, expiresIn = '7d') => jwt.sign(payload, jwtSecret, { expiresIn }),
-  verify: (token) => jwt.verify(token, jwtSecret)
+  sign: (payload, expiresIn = '7d') => jwt.sign(payload, jwtSecret, { algorithm: 'HS256', expiresIn }),
+  verify: (token) => jwt.verify(token, jwtSecret, { algorithms: ['HS256'] })
 };
 
 // ============================================
