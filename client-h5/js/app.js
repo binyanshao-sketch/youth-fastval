@@ -449,7 +449,7 @@
       title: result?.prize?.posterTitle || '把这份三江青年好运分享出去',
       amount: state.luckyBag?.redPacket?.amount || basePoster.amount || '0.00',
       blessing: result?.prize?.posterMessage || '邀请朋友一起打开青春福袋，在宜宾江景与竹影之间收下红包和抽奖惊喜。',
-      footer: '分享当前页面，让朋友也来领取福袋并进入首页抽奖区。'
+      footer: '分享当前页面，让朋友也来领取福袋并进入独立抽奖页。'
     };
   }
 
@@ -696,7 +696,7 @@
 
     const safeIndex = Number.isInteger(prizeIndex) ? prizeIndex : 0;
     const segment = 360 / count;
-    return normalizeRotation(wheelPointerAngle - (safeIndex * segment));
+    return normalizeRotation(wheelPointerAngle - (safeIndex * segment + segment / 2));
   }
 
   function getGridRingOrder(result = state.lottery.result) {
@@ -800,7 +800,7 @@
 
   function getRouteMeta() {
     const mapping = {
-      home: { title: '青春福袋', subtitle: '三江青年路线 · 开袋海报 · 首页抽奖一屏完成' },
+      home: { title: '青春福袋', subtitle: '三江青年路线 · 开袋海报 · 独立抽奖页衔接' },
       receive: { title: '福袋开启', subtitle: '九选一开袋，沿着三江水色进入开袋路线' },
       result: { title: '荣誉卡片', subtitle: '红包金额、到账状态和青年权益同步展示' },
       lottery: { title: '抽奖页面', subtitle: '当前启用奖池直接可见，延续和小程序同一套节奏' },
@@ -996,18 +996,22 @@
 
   function playWheel(result) {
     const wheelBoard = getLotteryBoard('wheel', result);
-    const extraTurns = 360 * 8;
+    const extraTurns = 360 * (7 + Math.floor(Math.random() * 3));
     const targetRotation = getWheelTargetRotation(result.prize?.index, wheelBoard.length);
-    state.lottery.wheelDuration = 5000;
-    state.lottery.wheelRotation = state.lottery.wheelRotation + extraTurns + targetRotation;
+    const nextRotation = state.lottery.wheelRotation + extraTurns + targetRotation;
+    state.lottery.wheelDuration = 5600;
     queueRender();
+    window.requestAnimationFrame(() => {
+      state.lottery.wheelRotation = nextRotation;
+      queueRender();
+    });
 
     setTimeout(() => {
       finishLottery(result);
       state.lottery.wheelDuration = 0;
       state.lottery.wheelRotation = targetRotation;
       queueRender();
-    }, 5100);
+    }, 5700);
   }
 
   function playGrid(result) {
@@ -1203,22 +1207,49 @@
     const gridCells = getGridCells();
 
     if (state.lottery.mode === 'wheel') {
+      const drawButtonLabel = state.lottery.hasDrawn
+        ? '已完成'
+        : (state.lottery.drawing ? '抽取中' : (state.luckyBag ? '开始' : '待解锁'));
+      const wheelCount = Math.max(1, wheelItems.length);
+      const segment = 360 / wheelCount;
+      const wheelGradient = wheelItems
+        .map((item, index) => {
+          const start = (index * segment).toFixed(3);
+          const end = ((index + 1) * segment).toFixed(3);
+          return `${item.color || '#dfeaf6'} ${start}deg ${end}deg`;
+        })
+        .join(', ');
+      const ledCount = 30;
       return `
         <div class="surface-card wheel-panel">
           <div class="wheel-stage">
-            <div class="wheel-pointer"></div>
-            <div class="wheel-body" style="transform: rotate(${state.lottery.wheelRotation}deg); transition: transform ${state.lottery.wheelDuration}ms cubic-bezier(0.12, 0.85, 0.15, 1);">
+            <div class="wheel-led-ring">
+              ${Array.from({ length: ledCount }).map((_, index) => `
+                <span class="wheel-led ${state.lottery.drawing ? 'live' : ''}" style="--angle:${((360 / ledCount) * index).toFixed(2)}deg; --i:${index};"></span>
+              `).join('')}
+            </div>
+            <div class="wheel-pointer"><span class="wheel-pointer-core"></span></div>
+            <div
+              class="wheel-body ${state.lottery.drawing ? 'spinning' : ''}"
+              style="
+                --wheel-gradient: conic-gradient(from -90deg, ${wheelGradient});
+                transform: rotate(${state.lottery.wheelRotation}deg);
+                transition: transform ${state.lottery.wheelDuration}ms cubic-bezier(0.08, 0.86, 0.12, 1);
+              "
+            >
               ${wheelItems.map((item, index) => {
-                const angle = Math.round((360 / wheelItems.length) * index);
+                const angle = (segment * index) + segment / 2;
                 return `
-                  <div class="wheel-prize ${index === winningWheelIndex ? 'active' : ''}" style="transform: translate(-50%, -50%) rotate(${angle}deg) translateY(-124px) rotate(-${angle}deg); background:${escapeHtml(item.color)}; color:${escapeHtml(item.accent)};">
-                    <span class="wheel-prize-name">${escapeHtml(item.shortLabel)}</span>
-                    <span class="wheel-prize-meta">${escapeHtml(item.level)}</span>
+                  <div class="wheel-prize ${index === winningWheelIndex ? 'active' : ''}" style="--angle:${angle.toFixed(2)}deg;">
+                    <div class="wheel-prize-content" style="background:${escapeHtml(item.color)}; color:${escapeHtml(item.accent)};">
+                      <span class="wheel-prize-name">${escapeHtml(item.shortLabel)}</span>
+                      <span class="wheel-prize-meta">${escapeHtml(item.level)}</span>
+                    </div>
                   </div>
                 `;
               }).join('')}
             </div>
-            <button class="primary-btn wheel-center" data-action="draw-lottery" ${state.lottery.drawing || state.lottery.hasDrawn || !state.luckyBag ? 'disabled' : ''}>
+            <button class="primary-btn wheel-center" data-action="draw-lottery" title="${drawButtonLabel}" ${state.lottery.drawing || state.lottery.hasDrawn || !state.luckyBag ? 'disabled' : ''}>
               ${state.lottery.hasDrawn ? '已完成' : (state.lottery.drawing ? '抽取中' : (state.luckyBag ? '开始' : '待解锁'))}
             </button>
           </div>
@@ -1452,8 +1483,8 @@
           <div class="hero-orbit orbit-a"></div>
           <div class="hero-orbit orbit-b"></div>
           <span class="hero-kicker">${escapeHtml(state.activity.statusText)}</span>
-          <div class="hero-title">青春福袋<span class="accent">红包、海报、抽奖一屏衔接</span></div>
-          <p class="hero-desc">以宜宾三江交汇和竹海风景为灵感，领取福袋后海报随机弹出，页面自动滑到抽奖区。整条链路在首页一步完成，更青春、更流畅。</p>
+          <div class="hero-title">青春福袋<span class="accent">红包、海报、独立抽奖页衔接</span></div>
+          <p class="hero-desc">以宜宾三江交汇和竹海风景为灵感，领取福袋后海报随机弹出，再进入独立抽奖页完成大转盘或九宫格抽奖。</p>
           <div class="hero-actions">
             <button class="primary-btn" data-action="receive-entry" ${!state.activity.isActive ? 'disabled' : ''}>${escapeHtml(primaryText)}</button>
             <button class="secondary-btn" data-route="/policies">查看青年政策福利</button>
@@ -1484,8 +1515,8 @@
             <div class="flow-item">
               <div class="flow-index">03</div>
               <div class="flow-body">
-                <div class="flow-title">停留首页继续抽奖</div>
-                <p class="flow-text">大转盘和九宫格已经并入首页，页面会自动滑到抽奖区，无需再寻找单独入口。</p>
+                <div class="flow-title">进入独立抽奖页</div>
+                <p class="flow-text">大转盘和九宫格统一放在独立抽奖页，领取福袋后可一键跳转并继续抽奖。</p>
               </div>
             </div>
           </div>
@@ -1494,10 +1525,10 @@
         <div class="glass-card home-lottery-shell">
           <div class="section-head section-head-stack">
             <div>
-              <div class="section-title">首页抽奖区</div>
-              <div class="section-subtitle section-subtitle-block">${hasReceived ? '客户端当前仅展示后台启用的奖池，保持和小程序同一套玩法入口。' : '领取青春福袋后，这里会自动亮起当前启用的抽奖玩法。'}</div>
+              <div class="section-title">独立抽奖入口</div>
+              <div class="section-subtitle section-subtitle-block">${hasReceived ? '抽奖玩法已迁移到独立页面，和小程序保持同一套奖池与交互。' : '领取青春福袋后，可从这里进入独立抽奖页。'}</div>
             </div>
-            <span class="status-chip ${state.userStats.hasDrawnLottery ? 'active' : 'pending'}">${state.userStats.hasDrawnLottery ? '已抽奖' : '待解锁'}</span>
+            <span class="status-chip ${state.userStats.hasDrawnLottery ? 'active' : 'pending'}">${state.userStats.hasDrawnLottery ? '已抽奖' : '待抽奖'}</span>
           </div>
           ${hasReceived ? `
             <div class="poster-quick-actions">
@@ -1505,21 +1536,14 @@
               <button class="secondary-btn mini-btn" data-action="open-home-poster" data-type="share">打开分享海报</button>
               <button class="secondary-btn mini-btn" data-route="/result">查看红包荣誉卡</button>
             </div>
+            <div class="page-actions home-lottery-actions">
+              <button class="primary-btn" data-route="/lottery">${state.userStats.hasDrawnLottery ? '查看抽奖结果' : '进入独立抽奖页'}</button>
+            </div>
           ` : ''}
         </div>
 
-        ${hasReceived ? `
-          ${renderLotteryControls()}
-          ${renderLotteryBoard()}
-          ${renderLotteryResultCard({
-            emptyText: '福袋权益已到账，直接在首页选择当前玩法开始抽奖。',
-            actions: `
-              <button class="secondary-btn" data-action="open-home-poster" data-type="random">再弹一张随机海报</button>
-              <button class="secondary-btn" data-route="/result">返回查看荣誉海报</button>
-            `
-          })}
-        ` : `
-          <div class="empty-panel">先领取青春福袋，首页才会亮起抽奖区、红包海报和分享海报弹窗。</div>
+        ${hasReceived ? '' : `
+          <div class="empty-panel">先领取青春福袋，再进入独立抽奖页参与当前启用玩法。</div>
         `}
 
         ${hasReceived ? `
@@ -1545,10 +1569,10 @@
               </button>
               <button class="list-card metric-row" data-route="/lottery">
                 <div>
-                  <span class="metric-main">${state.userStats.hasDrawnLottery ? '已抽奖' : '首页可抽奖'}</span>
-                  <div class="metric-caption">首页抽奖区已亮起</div>
+                  <span class="metric-main">${state.userStats.hasDrawnLottery ? '已抽奖' : '待抽奖'}</span>
+                  <div class="metric-caption">独立抽奖页可查看</div>
                 </div>
-                <span class="tiny-chip">查看独立页</span>
+                <span class="tiny-chip">进入抽奖页</span>
               </button>
             </div>
           </div>
@@ -1691,7 +1715,7 @@
         </div>
 
         <div class="page-actions">
-          <button class="primary-btn" data-route="/lottery">继续进入抽奖区</button>
+          <button class="primary-btn" data-route="/lottery">继续进入独立抽奖页</button>
           <button class="secondary-btn" data-route="/coupons">查看消费券</button>
           <button class="secondary-btn" data-route="/redpackets">查看红包记录</button>
           <button class="secondary-btn" data-route="/policies">查看政策福利</button>
@@ -1901,7 +1925,7 @@
         ` : '<div class="empty-panel">还没有红包记录，先回首页领取青春福袋。</div>'}
 
         <div class="page-actions">
-          <button class="secondary-btn" data-route="/lottery">进入青春抽奖区</button>
+          <button class="secondary-btn" data-route="/lottery">进入独立抽奖页</button>
         </div>
       </section>
     `;
@@ -1941,7 +1965,7 @@
 
         <div class="list-stack">
           <button class="surface-card menu-card" data-route="/lottery">
-            <div class="menu-title">进入青春抽奖区</div>
+            <div class="menu-title">进入独立抽奖页</div>
             <p class="menu-desc">查看三江转盘、青春九宫格和你的抽奖结果。</p>
           </button>
           <button class="surface-card menu-card" data-route="/policies">
@@ -2007,7 +2031,7 @@
       <div class="modal-backdrop">
         <div class="modal-panel">
           <div class="modal-title">绑定领奖手机号后继续</div>
-          <p class="modal-copy">当前开袋结果已经锁定，绑定成功后即可继续查看荣誉海报并进入首页抽奖区。</p>
+          <p class="modal-copy">当前开袋结果已经锁定，绑定成功后即可继续查看荣誉海报并进入独立抽奖页。</p>
           <input class="text-input" data-model="receive.phone" value="${escapeHtml(state.receive.phone)}" maxlength="11" placeholder="请输入领奖手机号">
           <div class="modal-actions">
             <button class="primary-btn" data-action="bind-phone">绑定并继续</button>

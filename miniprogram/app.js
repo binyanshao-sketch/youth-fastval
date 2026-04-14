@@ -1,8 +1,44 @@
+const PROD_BASE_URL = 'https://lucky.rongzhouqingnian.cloud';
+const DEV_BASE_URL = 'http://127.0.0.1:3000';
+
+function trimTrailingSlash(url) {
+  return String(url || '').replace(/\/+$/, '');
+}
+
+function getEnvVersion() {
+  try {
+    if (typeof wx.getAccountInfoSync === 'function') {
+      return wx.getAccountInfoSync()?.miniProgram?.envVersion || '';
+    }
+  } catch (error) {
+    // ignore
+  }
+  return '';
+}
+
+function resolveBaseUrl() {
+  try {
+    const override = trimTrailingSlash(wx.getStorageSync('dev_base_url'));
+    if (override) {
+      return override;
+    }
+  } catch (error) {
+    // ignore
+  }
+
+  // In DevTools / development builds, prefer local backend for reliable local debugging.
+  if (getEnvVersion() === 'develop') {
+    return DEV_BASE_URL;
+  }
+
+  return PROD_BASE_URL;
+}
+
 App({
   globalData: {
     userInfo: null,
     token: null,
-    baseUrl: 'https://lucky.rongzhouqingnian.cloud',
+    baseUrl: resolveBaseUrl(),
     luckyBagSnapshot: null,
     lotterySnapshot: null
   },

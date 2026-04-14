@@ -9,8 +9,6 @@ const {
   resolveDisplayPrizeCollection
 } = require('../../utils/lotteryTheme');
 
-const HOME_LOTTERY_FOCUS_KEY = 'homeFocusLottery';
-
 function createLotteryState() {
   return {
     loadingLottery: false,
@@ -67,7 +65,6 @@ Page({
     posterPopupType: 'redpacket',
     posterPopup: null,
     pageEntered: false,
-    lotterySectionPulse: false,
     ...createLotteryState()
   },
 
@@ -90,7 +87,6 @@ Page({
     clearTimeout(this.gridTimer);
     clearTimeout(this.drawTimer);
     clearTimeout(this.pageEntryTimer);
-    clearTimeout(this.lotterySectionPulseTimer);
   },
 
   onUnload() {
@@ -99,7 +95,6 @@ Page({
     clearTimeout(this.gridTimer);
     clearTimeout(this.drawTimer);
     clearTimeout(this.pageEntryTimer);
-    clearTimeout(this.lotterySectionPulseTimer);
   },
 
   triggerPageEntry() {
@@ -176,7 +171,6 @@ Page({
         posterPopupVisible: false,
         posterPopupType: 'redpacket',
         posterPopup: null,
-        lotterySectionPulse: false,
         ...createLotteryState()
       });
       return;
@@ -203,7 +197,6 @@ Page({
           posterPopupVisible: false,
           posterPopupType: 'redpacket',
           posterPopup: null,
-          lotterySectionPulse: false,
           ...createLotteryState()
         });
         return;
@@ -252,15 +245,10 @@ Page({
         drawing: false
       };
 
-      const justUnlocked = !this._hadReceived && nextState.hasReceived;
       this._hadReceived = nextState.hasReceived;
 
       this.setData(nextState, () => {
         this.maybeOpenPosterPopup();
-        if (justUnlocked) {
-          this.scrollToLotterySection({ highlight: true });
-        }
-        this.consumeHomeFocusFlag();
       });
     } catch (error) {
       console.error('sync home data failed', error);
@@ -336,39 +324,6 @@ Page({
 
     this._lastPosterPopupKey = key;
     this.showPosterPopup('random');
-  },
-
-  consumeHomeFocusFlag() {
-    const shouldFocus = wx.getStorageSync(HOME_LOTTERY_FOCUS_KEY);
-    if (!shouldFocus || !this.data.hasReceived) {
-      return;
-    }
-
-    wx.removeStorageSync(HOME_LOTTERY_FOCUS_KEY);
-    this.scrollToLotterySection({ highlight: true });
-  },
-
-  scrollToLotterySection({ highlight = false } = {}) {
-    if (!this.data.hasReceived) {
-      return;
-    }
-
-    setTimeout(() => {
-      wx.pageScrollTo({
-        selector: '#lottery-section',
-        duration: 620,
-        offsetTop: 12,
-        fail: () => {}
-      });
-
-      if (highlight) {
-        this.setData({ lotterySectionPulse: true });
-        clearTimeout(this.lotterySectionPulseTimer);
-        this.lotterySectionPulseTimer = setTimeout(() => {
-          this.setData({ lotterySectionPulse: false });
-        }, 1400);
-      }
-    }, 220);
   },
 
   async generateAndUploadPoster() {
@@ -599,8 +554,12 @@ Page({
       + this.getWheelTargetRotation(result.prize.index, wheelBoard.length);
 
     this.setData({
-      wheelDuration: 4200,
-      wheelRotation: rotation
+      wheelDuration: 4200
+    }, () => {
+      // Apply duration first, then update rotation so transition is reliably triggered.
+      this.setData({
+        wheelRotation: rotation
+      });
     });
 
     this.drawTimer = setTimeout(() => {

@@ -1,4 +1,3 @@
-@import "../lottery/index.wxss";
 @import "../lucky-bag/result.wxss";
 
 .home-page {

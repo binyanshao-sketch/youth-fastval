@@ -25,7 +25,7 @@
           <text class="wheel-prize-meta">{{item.level}}</text>
         </view>
       </view>
-      <button class="wheel-center primary-btn" bindtap="onDraw" disabled="{{drawing || hasDrawn}}">
+      <button class="wheel-center primary-btn {{drawing ? 'is-drawing' : ''}} {{hasDrawn ? 'is-complete' : 'is-ready'}}" bindtap="onDraw" disabled="{{drawing || hasDrawn}}">
         {{hasDrawn ? '已完成' : (drawing ? '抽取中' : '开始抽奖')}}
       </button>
     </view>

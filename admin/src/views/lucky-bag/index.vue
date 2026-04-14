@@ -174,15 +174,47 @@
         <div class="section-heading">
           <div>
             <h3>大转盘奖池预览</h3>
-            <p>实时展示转盘奖项配置。</p>
+            <p>实时展示转盘奖项配置与落点视觉。</p>
           </div>
         </div>
-        <div class="lottery-grid">
-          <div class="lottery-tile" v-for="item in lotteryBoards.wheel || []" :key="item.key">
-            <strong>{{ item.label }}</strong>
-            <span>{{ item.value }}</span>
+        <div v-if="wheelPreviewPrizes.length" class="wheel-preview-wrap">
+          <div class="wheel-preview-stage">
+            <div class="wheel-preview-leds">
+              <span
+                v-for="n in 30"
+                :key="'led-' + n"
+                class="wheel-preview-led"
+                :style="{ '--angle': `${(360 / 30) * (n - 1)}deg`, '--delay': `${(n - 1) * 0.04}s` }"
+              />
+            </div>
+            <div class="wheel-preview-pointer">
+              <span class="wheel-preview-pointer-core"></span>
+            </div>
+            <div class="wheel-preview-disc" :style="{ '--wheel-gradient': wheelPreviewGradient }">
+              <div
+                v-for="item in wheelPreviewPrizes"
+                :key="item.key"
+                class="wheel-preview-slot"
+                :style="{ '--angle': `${item.angle}deg` }"
+              >
+                <div class="wheel-preview-slot-card" :style="{ background: item.bg, color: item.fg }">
+                  <strong>{{ item.label }}</strong>
+                  <span>{{ item.value }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="wheel-preview-list">
+            <div class="wheel-preview-list-item" v-for="item in wheelPreviewPrizes" :key="'list-' + item.key">
+              <span class="wheel-preview-dot" :style="{ background: item.bg }"></span>
+              <div>
+                <strong>{{ item.label }}</strong>
+                <p>{{ item.value }}</p>
+              </div>
+            </div>
           </div>
         </div>
+        <div v-else class="empty-panel">暂无转盘奖项配置</div>
       </div>
 
       <div class="page-card" style="padding: 22px;">
@@ -348,6 +380,43 @@ const gridPreview = computed(() => {
     if (index == null) return { isCenter: true }
     return source[index]
   })
+})
+
+const wheelPreviewPrizes = computed(() => {
+  const source = lotteryBoards.value.wheel || []
+  if (!source.length) {
+    return []
+  }
+
+  const count = source.length
+  const segment = 360 / count
+  return source.map((item, index) => {
+    const fallbackBg = index % 2 === 0 ? '#1db7a4' : '#0d5fa8'
+    const fallbackFg = '#ffffff'
+    return {
+      key: item.key || `wheel-${index}`,
+      label: item.label || '-',
+      value: item.value || '',
+      bg: item.color || fallbackBg,
+      fg: item.accent || fallbackFg,
+      angle: (index * segment + segment / 2).toFixed(2)
+    }
+  })
+})
+
+const wheelPreviewGradient = computed(() => {
+  if (!wheelPreviewPrizes.value.length) {
+    return 'conic-gradient(from -90deg, #dce8f4 0deg 360deg)'
+  }
+
+  const count = wheelPreviewPrizes.value.length
+  const segment = 360 / count
+  const pieces = wheelPreviewPrizes.value.map((item, index) => {
+    const start = (index * segment).toFixed(3)
+    const end = ((index + 1) * segment).toFixed(3)
+    return `${item.bg} ${start}deg ${end}deg`
+  })
+  return `conic-gradient(from -90deg, ${pieces.join(', ')})`
 })
 
 function formatMoney(value) {
@@ -564,3 +633,168 @@ async function removePoster(poolId) {
 
 onMounted(loadData)
 </script>
+
+<style scoped>
+.wheel-preview-wrap {
+  display: grid;
+  grid-template-columns: minmax(260px, 360px) minmax(180px, 1fr);
+  gap: 20px;
+  align-items: center;
+}
+
+.wheel-preview-stage {
+  position: relative;
+  width: min(72vw, 340px);
+  height: min(72vw, 340px);
+  margin: 0 auto;
+  display: grid;
+  place-items: center;
+}
+
+.wheel-preview-leds {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.wheel-preview-led {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92);
+  transform: translate(-50%, -50%) rotate(var(--angle)) translateY(calc(-1 * min(35vw, 160px)));
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.45), 0 0 12px rgba(40, 167, 215, 0.5);
+  animation: wheel-led-pulse 1.2s steps(2, end) infinite;
+  animation-delay: var(--delay);
+}
+
+.wheel-preview-pointer {
+  position: absolute;
+  left: 50%;
+  top: -4px;
+  transform: translateX(-50%);
+  width: 26px;
+  height: 42px;
+  z-index: 3;
+  clip-path: polygon(50% 100%, 0 0, 100% 0);
+  background: linear-gradient(180deg, #ffd487 0%, #ef9d51 100%);
+  filter: drop-shadow(0 10px 16px rgba(239, 157, 81, 0.35));
+}
+
+.wheel-preview-pointer-core {
+  position: absolute;
+  left: 50%;
+  top: 22px;
+  transform: translateX(-50%);
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #fff6dd;
+}
+
+.wheel-preview-disc {
+  position: absolute;
+  inset: 20px;
+  border-radius: 50%;
+  background: var(--wheel-gradient);
+  border: 12px solid rgba(255, 255, 255, 0.96);
+  box-shadow: 0 18px 30px rgba(13, 95, 168, 0.18), 0 0 0 6px rgba(29, 183, 164, 0.12);
+}
+
+.wheel-preview-disc::before {
+  content: '';
+  position: absolute;
+  inset: 18%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.95), rgba(229, 242, 251, 0.95));
+  box-shadow: inset 0 0 0 2px rgba(125, 189, 232, 0.35);
+}
+
+.wheel-preview-slot {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 0;
+  transform: rotate(var(--angle));
+}
+
+.wheel-preview-slot-card {
+  transform: translate(-50%, -50%) translateY(calc(-1 * min(25vw, 110px))) rotate(calc(-1 * var(--angle)));
+  width: min(18vw, 84px);
+  min-height: 58px;
+  border-radius: 14px;
+  padding: 8px 6px;
+  text-align: center;
+  border: 1px solid rgba(255, 255, 255, 0.68);
+  box-shadow: 0 10px 18px rgba(8, 59, 118, 0.22);
+}
+
+.wheel-preview-slot-card strong {
+  display: block;
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.wheel-preview-slot-card span {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  opacity: 0.95;
+}
+
+.wheel-preview-list {
+  display: grid;
+  gap: 10px;
+}
+
+.wheel-preview-list-item {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(13, 95, 168, 0.05);
+}
+
+.wheel-preview-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-top: 4px;
+  flex: 0 0 auto;
+}
+
+.wheel-preview-list-item strong {
+  font-size: 13px;
+  color: #1f2d3d;
+}
+
+.wheel-preview-list-item p {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: #5b6675;
+}
+
+.empty-panel {
+  padding: 18px;
+  border-radius: 12px;
+  background: rgba(13, 95, 168, 0.05);
+  color: #5b6675;
+  text-align: center;
+}
+
+@keyframes wheel-led-pulse {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 1; }
+}
+
+@media (max-width: 900px) {
+  .wheel-preview-wrap {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

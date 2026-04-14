@@ -432,6 +432,10 @@ button {
   padding: 22px;
 }
 
+.home-lottery-actions {
+  margin-top: 14px;
+}
+
 .countdown-grid,
 .summary-grid,
 .quick-grid,
@@ -1019,14 +1023,27 @@ button {
 .grid-panel {
   position: relative;
   overflow: hidden;
-  padding: 22px;
+  padding: 24px;
 }
 
 .wheel-panel::before {
   content: "";
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at top right, rgba(120, 238, 220, 0.14), transparent 30%);
+  background:
+    radial-gradient(circle at 18% 18%, rgba(69, 196, 249, 0.18), transparent 36%),
+    radial-gradient(circle at 82% 8%, rgba(54, 231, 196, 0.16), transparent 34%),
+    linear-gradient(160deg, rgba(8, 86, 145, 0.04), transparent 44%);
+  pointer-events: none;
+}
+
+.wheel-panel::after {
+  content: "";
+  position: absolute;
+  inset: 14px;
+  border-radius: 22px;
+  border: 1px dashed rgba(13, 95, 168, 0.12);
+  opacity: 0.6;
   pointer-events: none;
 }
 
@@ -1042,23 +1059,102 @@ button {
 
 .wheel-stage {
   position: relative;
-  width: min(80vw, 320px);
-  height: min(80vw, 320px);
-  margin: 6px auto 0;
+  width: min(86vw, 360px);
+  height: min(86vw, 360px);
+  margin: 8px auto 0;
+  display: grid;
+  place-items: center;
+}
+
+.wheel-led-ring {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.wheel-led {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  transform: translate(-50%, -50%) rotate(var(--angle)) translateY(calc(-1 * min(41vw, 173px)));
+  box-shadow:
+    0 0 0 2px rgba(255, 255, 255, 0.58),
+    0 0 10px rgba(76, 201, 255, 0.5);
+  opacity: 0.82;
+}
+
+.wheel-led.live {
+  animation: wheelLedBlink 0.92s steps(2, end) infinite;
+  animation-delay: calc(var(--i) * 45ms);
+}
+
+@keyframes wheelLedBlink {
+  0%, 100% {
+    opacity: 0.34;
+    box-shadow:
+      0 0 0 2px rgba(255, 255, 255, 0.2),
+      0 0 8px rgba(76, 201, 255, 0.28);
+  }
+  55% {
+    opacity: 1;
+    box-shadow:
+      0 0 0 2px rgba(255, 255, 255, 0.68),
+      0 0 18px rgba(76, 201, 255, 0.75);
+  }
 }
 
 .wheel-pointer {
   position: absolute;
   left: 50%;
-  top: -6px;
+  top: -14px;
   transform: translateX(-50%);
+  width: 56px;
+  height: 72px;
+  z-index: 9;
+  filter: drop-shadow(0 10px 20px rgba(16, 99, 167, 0.34));
+  pointer-events: none;
+}
+
+.wheel-pointer::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 0;
   width: 28px;
-  height: 26px;
-  background: linear-gradient(180deg, #40d3c0 0%, #29c7b2 100%);
-  clip-path: polygon(0 0, 100% 0, 50% 100%);
-  z-index: 4;
-  filter: drop-shadow(0 10px 18px rgba(41, 199, 178, 0.4));
-  animation: pointerBounce 0.6s ease-in-out;
+  height: 42px;
+  transform: translateX(-50%);
+  clip-path: polygon(50% 100%, 0 0, 100% 0);
+  background: linear-gradient(180deg, #ffd68a 0%, #f5a853 76%, #eb7b38 100%);
+}
+
+.wheel-pointer::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 34px;
+  width: 28px;
+  height: 28px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff8d7 0%, #ffd16f 40%, #ef9649 100%);
+  box-shadow: 0 4px 12px rgba(242, 150, 72, 0.42), inset 0 0 0 2px rgba(255, 255, 255, 0.6);
+}
+
+.wheel-pointer-core {
+  position: absolute;
+  left: 50%;
+  top: 42px;
+  width: 8px;
+  height: 8px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: #fef6dc;
+  box-shadow: 0 0 0 3px rgba(255, 246, 220, 0.38);
 }
 
 @keyframes pointerBounce {
@@ -1069,30 +1165,37 @@ button {
 
 .wheel-body {
   position: absolute;
-  inset: 0;
+  inset: 20px;
   border-radius: 50%;
-  background:
-    repeating-conic-gradient(from 0deg, rgba(13, 95, 168, 0.03) 0deg 60deg, transparent 60deg 120deg),
-    radial-gradient(circle at center, rgba(244, 251, 255, 0.96), rgba(233, 247, 248, 0.98));
-  border: 10px solid rgba(12, 95, 168, 0.18);
+  background: var(--wheel-gradient);
+  border: 12px solid rgba(248, 251, 255, 0.96);
   box-shadow:
-    0 0 0 4px rgba(27, 161, 145, 0.08),
-    inset 0 0 40px rgba(13, 95, 168, 0.05);
+    0 20px 36px rgba(8, 68, 127, 0.22),
+    0 0 0 6px rgba(65, 208, 224, 0.14),
+    inset 0 0 0 2px rgba(255, 255, 255, 0.52);
+  will-change: transform;
+}
+
+.wheel-body.spinning {
+  filter: saturate(1.04) contrast(1.02);
 }
 
 .wheel-body::before {
   content: "";
   position: absolute;
-  inset: -10px;
+  inset: 16%;
   border-radius: 50%;
-  background:
-    repeating-conic-gradient(
-      from 0deg,
-      rgba(41, 199, 178, 0.55) 0deg 2deg,
-      transparent 2deg 15deg
-    );
-  mask: radial-gradient(circle, transparent 88%, #000 89%, #000 100%);
-  -webkit-mask: radial-gradient(circle, transparent 88%, #000 89%, #000 100%);
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.92) 0%, rgba(230, 244, 255, 0.98) 75%, rgba(210, 236, 255, 0.98) 100%);
+  box-shadow: inset 0 0 0 2px rgba(127, 193, 236, 0.38);
+}
+
+.wheel-body::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(from 90deg, rgba(255, 255, 255, 0.35), transparent 28%, rgba(255, 255, 255, 0.16) 42%, transparent 100%);
+  mix-blend-mode: soft-light;
   pointer-events: none;
 }
 
@@ -1100,18 +1203,31 @@ button {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 90px;
-  min-height: 64px;
-  padding: 10px 8px;
-  border-radius: 18px;
-  text-align: center;
-  box-shadow: 0 10px 20px rgba(14, 78, 137, 0.08);
-  transition: box-shadow 0.35s ease, opacity 0.35s ease, transform 0.35s ease;
+  width: 0;
+  height: 0;
+  transform: rotate(var(--angle));
 }
 
-.wheel-prize.active {
-  box-shadow: 0 0 0 3px rgba(41, 199, 178, 0.5), 0 16px 30px rgba(13, 95, 168, 0.16);
-  animation: prizeWin 0.6s ease-out;
+.wheel-prize-content {
+  transform: translate(-50%, -50%) translateY(calc(-1 * min(30vw, 124px))) rotate(calc(-1 * var(--angle)));
+  width: min(21vw, 92px);
+  min-height: 66px;
+  padding: 10px 8px;
+  border-radius: 16px;
+  text-align: center;
+  box-shadow: 0 10px 20px rgba(10, 56, 107, 0.18);
+  transition: transform 0.35s ease, box-shadow 0.35s ease, filter 0.35s ease;
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(2px);
+}
+
+.wheel-prize.active .wheel-prize-content {
+  transform: translate(-50%, -50%) translateY(calc(-1 * min(31vw, 128px))) rotate(calc(-1 * var(--angle))) scale(1.06);
+  box-shadow:
+    0 0 0 3px rgba(63, 229, 203, 0.45),
+    0 18px 34px rgba(11, 88, 148, 0.28);
+  filter: saturate(1.08);
+  animation: prizeWin 0.62s ease-out;
 }
 
 .wheel-prize-name,
@@ -1133,15 +1249,24 @@ button {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 102px;
-  min-height: 102px;
+  width: min(30vw, 122px);
+  height: min(30vw, 122px);
   transform: translate(-50%, -50%);
   border-radius: 50%;
-  z-index: 5;
-  font-size: 16px;
+  z-index: 10;
+  padding: 0 8px;
+  line-height: 1.2;
+  font-size: 17px;
   font-weight: 800;
-  letter-spacing: 0.06em;
-  transition: box-shadow 0.3s ease;
+  letter-spacing: 0.04em;
+  transition: box-shadow 0.3s ease, transform 0.3s ease;
+  border: 5px solid rgba(255, 255, 255, 0.74);
+  background:
+    radial-gradient(circle at 30% 24%, #f8fffe 0%, #6be7cd 48%, #21b79d 100%);
+  color: #074b42;
+  box-shadow:
+    0 14px 30px rgba(23, 157, 135, 0.34),
+    inset 0 -10px 18px rgba(0, 0, 0, 0.1);
 }
 
 .wheel-center:not(:disabled) {
@@ -1149,7 +1274,8 @@ button {
 }
 
 .wheel-center:disabled {
-  opacity: 0.7;
+  opacity: 0.78;
+  filter: grayscale(0.12);
 }
 
 .grid-board {

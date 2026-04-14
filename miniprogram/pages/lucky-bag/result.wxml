@@ -84,7 +84,7 @@
   </view>
 
   <view class="action-footer stagger-item stage-4">
-    <button class="primary-btn main-action" bindtap="goToHomeLottery">立即前往首页抽奖</button>
+    <button class="primary-btn main-action" bindtap="goToLotteryPage">立即前往抽奖页</button>
     <view class="secondary-actions">
       <button class="secondary-btn ghost-btn" bindtap="goToCoupons">查看消费券</button>
       <button class="secondary-btn ghost-btn" bindtap="goHome">返回首页</button>

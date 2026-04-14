@@ -1,7 +1,5 @@
 const app = getApp();
 
-const HOME_LOTTERY_FOCUS_KEY = 'homeFocusLottery';
-
 function normalizeCoupons(coupons) {
   return (coupons || []).map((item) => {
     if (item.coupon) {
@@ -153,9 +151,8 @@ Page({
     });
   },
 
-  goToHomeLottery() {
-    wx.setStorageSync(HOME_LOTTERY_FOCUS_KEY, '1');
-    wx.switchTab({ url: '/pages/index/index' });
+  goToLotteryPage() {
+    wx.navigateTo({ url: '/pages/lottery/index' });
   },
 
   goToCoupons() {

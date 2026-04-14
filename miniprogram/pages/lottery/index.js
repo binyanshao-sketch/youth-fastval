@@ -155,8 +155,12 @@ Page({
       + this.getWheelTargetRotation(result.prize.index, wheelBoard.length);
 
     this.setData({
-      wheelDuration: 4200,
-      wheelRotation: rotation
+      wheelDuration: 4200
+    }, () => {
+      // Apply duration first, then update rotation so transition is reliably triggered.
+      this.setData({
+        wheelRotation: rotation
+      });
     });
 
     this.drawTimer = setTimeout(() => {
